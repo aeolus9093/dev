@@ -172,7 +172,23 @@ function doGet() {
   // 근무자 실적 데이터를 가져오는 함수
   function getWorkPerformanceData() {
     try {
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      // 근무자 실적 스프레드시트 URL (하드코딩)
+      const workPerformanceUrl = "여기에 스프레드시트 URL을 입력하세요"; // 이 부분을 실제 URL로 변경하세요
+      
+      let ss;
+      
+      // URL이 있으면 해당 URL의 스프레드시트 열기, 없으면 현재 활성 스프레드시트 사용
+      if (workPerformanceUrl && workPerformanceUrl !== "여기에 스프레드시트 URL을 입력하세요") {
+        try {
+          ss = SpreadsheetApp.openByUrl(workPerformanceUrl);
+        } catch (e) {
+          console.error('근무자 실적 URL로 스프레드시트를 열 수 없습니다:', e);
+          ss = SpreadsheetApp.getActiveSpreadsheet();
+        }
+      } else {
+        ss = SpreadsheetApp.getActiveSpreadsheet();
+      }
+      
       const sheet = ss.getSheetByName('근무자 실적'); // 근무자 실적 시트
       
       if (!sheet) {

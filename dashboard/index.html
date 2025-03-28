@@ -338,14 +338,14 @@
                   <table id="dispatcher-stats-table" class="table table-striped table-hover">
                     <thead>
                       <tr>
+                        <th class="sortable" data-sort="dispatcher">
+                          담당자 <i class="fas fa-sort"></i>
+                        </th>
                         <th class="sortable" data-sort="workShift" style="width: 80px;">
                           근무 시프트 <i class="fas fa-sort"></i>
                         </th>
                         <th class="sortable" data-sort="workHours" style="width: 80px;">
                           근무 시간 <i class="fas fa-sort"></i>
-                        </th>
-                        <th class="sortable" data-sort="dispatcher">
-                          담당자 <i class="fas fa-sort"></i>
                         </th>
                         <th class="sortable" data-sort="total">
                           총 건수 <i class="fas fa-sort"></i>
@@ -694,9 +694,9 @@
         row.setAttribute('data-goalAchievement', s.goalAchievement);
         
         // 셀 추가
-        row.insertCell(0).textContent = s.workShift;
-        row.insertCell(1).textContent = s.workHours;
-        row.insertCell(2).textContent = dispatcher;
+        row.insertCell(0).textContent = dispatcher;
+        row.insertCell(1).textContent = s.workShift;
+        row.insertCell(2).textContent = s.workHours;
         row.insertCell(3).textContent = s.total;
         row.insertCell(4).textContent = s.totalScore;
         row.insertCell(5).textContent = `${s.systemDispatch} (${Math.round(s.systemDispatch/s.total*100)}%)`;
