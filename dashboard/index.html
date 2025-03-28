@@ -1453,4 +1453,103 @@
         console.error('성과자 데이터 표시 중 오류:', error);
       }
     }
+    
+    // 오류 메시지 표시 함수
+    function showError(message) {
+      console.error(message);
+      
+      // 오류 알림 요소 생성 또는 업데이트
+      let errorAlert = document.getElementById('error-alert');
+      
+      if (!errorAlert) {
+        errorAlert = document.createElement('div');
+        errorAlert.id = 'error-alert';
+        errorAlert.className = 'alert alert-danger';
+        errorAlert.style.position = 'fixed';
+        errorAlert.style.top = '20px';
+        errorAlert.style.left = '50%';
+        errorAlert.style.transform = 'translateX(-50%)';
+        errorAlert.style.zIndex = '9999';
+        errorAlert.style.padding = '10px 20px';
+        errorAlert.style.borderRadius = '4px';
+        errorAlert.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+        document.body.appendChild(errorAlert);
+      }
+      
+      errorAlert.textContent = message;
+      errorAlert.style.display = 'block';
+      
+      // 3초 후 오류 메시지 숨기기
+      setTimeout(() => {
+        errorAlert.style.display = 'none';
+      }, 3000);
+      
+      // 로딩 표시 숨기기
+      hideLoading();
+    }
+    
+    // 서버에서 데이터 가져오기
+    async function fetchData() {
+      return new Promise((resolve) => {
+        try {
+          google.script.run
+            .withSuccessHandler((data) => {
+              console.log('데이터 로드 성공');
+              resolve(data);
+            })
+            .withFailureHandler((error) => {
+              console.error('데이터 로드 오류:', error);
+              resolve(null);
+            })
+            .getDashboardData();
+        } catch (error) {
+          console.error('fetchData 실행 중 오류:', error);
+          resolve(null);
+        }
+      });
+    }
+    
+    // 데이터 처리 함수
+    function processData(data) {
+      if (!data) return;
+      
+      try {
+        // 차트 데이터 저장
+        chartData = data;
+        
+        // 요약 통계 표시
+        if (data.summary) {
+          displaySummary(data.summary);
+        }
+        
+        // 시간대별 통계 표시
+        if (data.hourlyStats && data.hourlyStats.length > 0) {
+          displayHourlyStats(data.hourlyStats);
+        }
+        
+        // 담당자별 통계 표시
+        if (data.dispatcherStats) {
+          displayDispatcherStats(data.dispatcherStats);
+        }
+        
+        // 고성과자/저성과자 표시
+        if (data.performers) {
+          displayPerformers(data.performers);
+        }
+        
+        // 정렬 이벤트 리스너 설정
+        setupSortListeners();
+        
+        // 테이블 캡처 버튼 설정
+        setupCaptureButton();
+        
+        // 필터 이벤트 리스너 설정
+        setupFilterListener();
+        
+        console.log('데이터 처리 완료');
+      } catch (error) {
+        console.error('데이터 처리 중 오류:', error);
+        showError('데이터 처리 중 오류가 발생했습니다.');
+      }
+    }
   </script>
