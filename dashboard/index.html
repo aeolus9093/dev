@@ -1154,22 +1154,108 @@
       });
     }
     
-    // 필터 이벤트 리스너 설정
-    function setupFilterListeners() {
-      const filterInput = document.getElementById('dispatcher-filter');
-      const clearButton = document.getElementById('clear-filter');
-      
-      filterInput.addEventListener('input', () => {
-        filterText = filterInput.value;
-        renderDispatcherTable();
-      });
-      
-      clearButton.addEventListener('click', () => {
+  // 필터 이벤트 리스너 설정
+  function setupFilterListener() {
+    const filterInput = document.getElementById('dispatcher-filter');
+    if (!filterInput) return;
+    
+    filterInput.addEventListener('input', function() {
+      filterText = this.value.toLowerCase();
+      renderDispatcherTable();
+    });
+    
+    // 필터 초기화 버튼
+    const clearFilterButton = document.getElementById('clear-filter');
+    if (clearFilterButton) {
+      clearFilterButton.addEventListener('click', function() {
         filterInput.value = '';
         filterText = '';
         renderDispatcherTable();
       });
     }
+  }
+
+  // 자동 새로고침 설정
+  function setupAutoRefresh() {
+    // 이전 타이머가 있으면 제거
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+    }
+    
+    // 5분마다 자동 새로고침
+    refreshTimer = setInterval(() => {
+      console.log('자동 새로고침 실행');
+      loadData(false);
+    }, 5 * 60 * 1000);
+  }
+
+  // 차트 크기 조정
+  function fixChartDisplay() {
+    // 차트가 있는 경우 크기 조정 및 다시 그리기
+    if (typeof window.drawHourlyChart === 'function') {
+      setTimeout(window.drawHourlyChart, 100);
+    }
+    
+    // 지역별 차트 다시 그리기
+    if (typeof window.drawRegionChart === 'function') {
+      setTimeout(window.drawRegionChart, 100);
+    }
+  }
+
+  // 지역별 차트 표시
+  function displayRegionChart(regionData) {
+    if (!regionData || regionData.length <= 1) return;
+    
+    const chartContainer = document.getElementById('region-chart');
+    if (!chartContainer) return;
+    
+    try {
+      // DataTable 생성
+      const dataTable = new google.visualization.DataTable();
+      dataTable.addColumn('string', '지역');
+      dataTable.addColumn('number', '건수');
+      
+      // 행 추가 (첫 번째 행은 헤더)
+      for (let i = 1; i < regionData.length; i++) {
+        dataTable.addRow([regionData[i][0], regionData[i][1]]);
+      }
+      
+      // 차트 옵션
+      const options = {
+        title: '지역별 배차 건수',
+        pieHole: 0.4,
+        chartArea: {
+          left: 10,
+          top: 30,
+          width: '100%',
+          height: '75%'
+        },
+        legend: {position: 'right'},
+        colors: ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#8064A2', '#4E9A06'],
+        width: '100%',
+        height: '100%',
+        tooltip: { isHtml: true }
+      };
+      
+      // 차트 그리기
+      const chart = new google.visualization.PieChart(chartContainer);
+      chart.draw(dataTable, options);
+      
+      // 전역 함수 정의
+      window.drawRegionChart = function() {
+        try {
+          chart.draw(dataTable, options);
+        } catch(e) {
+          console.error("지역별 차트 그리기 오류:", e);
+        }
+      };
+    } catch (e) {
+      console.error("지역별 차트 생성 오류:", e);
+      if (chartContainer) {
+        chartContainer.innerHTML = '<div class="alert alert-warning">차트 로드 중 오류가 발생했습니다.</div>';
+      }
+    }
+  }
     
     // 테이블 캡처 기능 설정
     function setupCaptureButton() {
