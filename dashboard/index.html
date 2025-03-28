@@ -4,7 +4,8 @@
   <head>
     <base target="_top">
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.googleusercontent.com; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; script-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self' https://*.googleusercontent.com https://*.google.com">
+    <!-- CSP 정책 수정 - frame-ancestors를 HTTP 헤더로 이동시키고 필요한 스타일 소스 추가 -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.googleusercontent.com; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com 'unsafe-inline'; script-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: blob:;">
     <title>배차 대시보드</title>
     <!-- Google Charts 라이브러리 로드 -->
     <script src="https://www.gstatic.com/charts/loader.js"></script>
@@ -479,11 +480,11 @@
                   <div class="input-group">
                     <input type="text" id="dispatcher-filter" class="form-control" placeholder="담당자 검색...">
                     <div class="input-group-append">
-                      <button id="clear-filter" class="btn btn-outline-secondary" type="button">
-                        <i class="fas fa-times"></i>
+                      <button id="clear-filter" class="btn btn-outline-secondary" type="button" title="필터 초기화">
+                        ✖️
                       </button>
                       <button id="capture-table" class="btn btn-outline-primary" type="button" title="테이블 캡처">
-                        <i class="fas fa-camera"></i>
+                        📷
                       </button>
                     </div>
                   </div>
@@ -548,7 +549,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- html2canvas 라이브러리 추가 -->
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
   <!-- 차트 및 데이터 처리 스크립트 -->
   <script>
@@ -998,23 +999,19 @@
         const opCell = row.insertCell(5);
         const opPercent = Math.round(s.operatorDispatch/s.total*100);
         
-        // 오퍼레이터 배차 비율에 따른 색상 적용 (그라데이션)
+        // 오퍼레이터 배차 비율에 따른 색상 적용 (3단계 분류)
         const opPercentText = document.createElement('span');
         if (opPercent < 30) {
-          // 30% 미만: 빨간색 (낮음) - 더 낮을수록 더 진한 빨간색
-          const intensity = Math.max(30 - opPercent, 0) * 2.5;
-          opPercentText.style.color = `rgb(${220 + intensity}, ${53 - intensity}, ${69 - intensity})`;
+          // 30% 미만: 빨간색 (낮음)
+          opPercentText.style.color = '#dc3545';
           opPercentText.style.fontWeight = 'bold';
         } else if (opPercent > 70) {
-          // 70% 초과: 파란색 (높음) - 더 높을수록 더 진한 파란색
-          const intensity = Math.min(opPercent - 70, 30) * 2.5;
-          opPercentText.style.color = `rgb(${13 - intensity}, ${110 + intensity}, ${253 + intensity})`;
+          // 70% 초과: 파란색 (높음)
+          opPercentText.style.color = '#0d6efd';
           opPercentText.style.fontWeight = 'bold';
         } else {
-          // 30~70%: 중간 값 - 30%에 가까울수록 옅은 빨간색, 70%에 가까울수록 옅은 파란색
-          const blueComponent = Math.round((opPercent - 30) / 40 * 255);
-          const redComponent = Math.round((70 - opPercent) / 40 * 255);
-          opPercentText.style.color = `rgb(${redComponent}, ${100}, ${blueComponent})`;
+          // 30~70%: 중간 값 - 회색
+          opPercentText.style.color = '#6c757d';
         }
         opPercentText.textContent = `${s.operatorDispatch} (${opPercent}%)`;
         opCell.appendChild(opPercentText);
@@ -1031,20 +1028,13 @@
         opSparklineContainer.setAttribute('data-sparkline-height', '20');
         
         // 오퍼레이터 배차 비율에 따른 스파크라인 색상 설정
-        let opSparklineColor = '#6c757d'; // 기본 회색
+        let opSparklineColor;
         if (opPercent < 30) {
-          // 30% 미만: 빨간색 (낮음) - 더 낮을수록 더 진한 빨간색
-          const intensity = Math.max(30 - opPercent, 0) * 2.5;
-          opSparklineColor = `rgb(${220 + intensity}, ${53 - intensity}, ${69 - intensity})`;
+          opSparklineColor = '#dc3545'; // 빨간색 (낮음)
         } else if (opPercent > 70) {
-          // 70% 초과: 파란색 (높음) - 더 높을수록 더 진한 파란색
-          const intensity = Math.min(opPercent - 70, 30) * 2.5;
-          opSparklineColor = `rgb(${13 - intensity}, ${110 + intensity}, ${253 + intensity})`;
+          opSparklineColor = '#0d6efd'; // 파란색 (높음)
         } else {
-          // 30~70%: 중간 값 - 30%에 가까울수록 옅은 빨간색, 70%에 가까울수록 옅은 파란색
-          const blueComponent = Math.round((opPercent - 30) / 40 * 255);
-          const redComponent = Math.round((70 - opPercent) / 40 * 255);
-          opSparklineColor = `rgb(${redComponent}, ${100}, ${blueComponent})`;
+          opSparklineColor = '#6c757d'; // 회색 (중간)
         }
         opSparklineContainer.setAttribute('data-sparkline-bar-color', opSparklineColor);
         
@@ -1052,23 +1042,19 @@
         const sysCell = row.insertCell(6);
         const sysPercent = Math.round(s.systemDispatch/s.total*100);
         
-        // 시스템 배차 비율에 따른 색상 적용 (그라데이션)
+        // 시스템 배차 비율에 따른 색상 적용 (3단계 분류)
         const sysPercentText = document.createElement('span');
         if (sysPercent > 70) {
-          // 70% 초과: 빨간색 (높음) - 더 높을수록 더 진한 빨간색
-          const intensity = Math.min(sysPercent - 70, 30) * 2.5;
-          sysPercentText.style.color = `rgb(${220 + intensity}, ${53 - intensity}, ${69 - intensity})`;
+          // 70% 초과: 빨간색 (높음)
+          sysPercentText.style.color = '#dc3545';
           sysPercentText.style.fontWeight = 'bold';
         } else if (sysPercent < 30) {
-          // 30% 미만: 초록색 (낮음) - 더 낮을수록 더 진한 초록색
-          const intensity = Math.max(30 - sysPercent, 0) * 2.5;
-          sysPercentText.style.color = `rgb(${25 - intensity}, ${135 + intensity}, ${84 + intensity})`;
+          // 30% 미만: 톤다운된 초록색 (낮음)
+          sysPercentText.style.color = '#2e7d32';
           sysPercentText.style.fontWeight = 'bold';
         } else {
-          // 30~70%: 중간 값 - 30%에 가까울수록 옅은 초록색, 70%에 가까울수록 옅은 빨간색
-          const redComponent = Math.round((sysPercent - 30) / 40 * 255);
-          const greenComponent = Math.round((70 - sysPercent) / 40 * 255);
-          sysPercentText.style.color = `rgb(${redComponent}, ${greenComponent}, ${50})`;
+          // 30~70%: 중간 값 - 회색
+          sysPercentText.style.color = '#6c757d';
         }
         sysPercentText.textContent = `${s.systemDispatch} (${sysPercent}%)`;
         sysCell.appendChild(sysPercentText);
@@ -1085,20 +1071,13 @@
         sysSparklineContainer.setAttribute('data-sparkline-height', '20');
         
         // 시스템 배차 비율에 따른 스파크라인 색상 설정
-        let sysSparklineColor = '#6c757d'; // 기본 회색
+        let sysSparklineColor;
         if (sysPercent > 70) {
-          // 70% 초과: 빨간색 (높음) - 더 높을수록 더 진한 빨간색
-          const intensity = Math.min(sysPercent - 70, 30) * 2.5;
-          sysSparklineColor = `rgb(${220 + intensity}, ${53 - intensity}, ${69 - intensity})`;
+          sysSparklineColor = '#dc3545'; // 빨간색 (높음)
         } else if (sysPercent < 30) {
-          // 30% 미만: 초록색 (낮음) - 더 낮을수록 더 진한 초록색
-          const intensity = Math.max(30 - sysPercent, 0) * 2.5;
-          sysSparklineColor = `rgb(${25 - intensity}, ${135 + intensity}, ${84 + intensity})`;
+          sysSparklineColor = '#2e7d32'; // 톤다운된 초록색 (낮음)
         } else {
-          // 30~70%: 중간 값 - 30%에 가까울수록 옅은 초록색, 70%에 가까울수록 옅은 빨간색
-          const redComponent = Math.round((sysPercent - 30) / 40 * 255);
-          const greenComponent = Math.round((70 - sysPercent) / 40 * 255);
-          sysSparklineColor = `rgb(${redComponent}, ${greenComponent}, ${50})`;
+          sysSparklineColor = '#6c757d'; // 회색 (중간)
         }
         sysSparklineContainer.setAttribute('data-sparkline-bar-color', sysSparklineColor);
         
@@ -1354,48 +1333,49 @@
           loadingDiv.innerHTML = '<div class="spinner-border text-light" role="status"><span class="visually-hidden">캡처 중...</span></div>';
           document.body.appendChild(loadingDiv);
           
+          // 테이블 캡처 전 준비 - 테이블 스타일 임시 조정
+          const originalTableStyle = statsTable.style.cssText;
+          statsTable.style.width = 'auto';
+          statsTable.style.maxWidth = '100%';
+          statsTable.style.backgroundColor = '#ffffff';
+          statsTable.style.border = '1px solid #dee2e6';
+          
           // 테이블 캡처
           const canvas = await html2canvas(statsTable, {
             backgroundColor: '#ffffff',
             scale: 2, // 고해상도로 캡처
-            logging: false,
-            useCORS: true
+            logging: true, // 디버깅을 위해 로깅 활성화
+            useCORS: true,
+            allowTaint: true,
+            foreignObjectRendering: false // 호환성 문제 해결
           });
+          
+          // 원래 테이블 스타일 복원
+          statsTable.style.cssText = originalTableStyle;
           
           // 캔버스를 이미지로 변환
           const imageData = canvas.toDataURL('image/png');
           
-          // 클립보드에 복사하기 위한 임시 요소 생성
-          const tempImg = document.createElement('img');
-          tempImg.src = imageData;
+          // 다운로드 링크 생성 (클립보드 복사 대신 다운로드 방식으로 변경)
+          const downloadLink = document.createElement('a');
+          downloadLink.href = imageData;
+          downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
+          downloadLink.style.display = 'none';
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
           
-          // 클립보드에 복사
-          try {
-            // 새로운 ClipboardItem API 사용 (최신 브라우저)
-            const blob = await (await fetch(imageData)).blob();
-            await navigator.clipboard.write([
-              new ClipboardItem({
-                [blob.type]: blob
-              })
-            ]);
-            alert('테이블이 클립보드에 복사되었습니다.');
-          } catch (clipboardError) {
-            // 대체 방법: 이미지 다운로드
-            console.error('클립보드 복사 실패:', clipboardError);
-            
-            // 다운로드 링크 생성
-            const downloadLink = document.createElement('a');
-            downloadLink.href = imageData;
-            downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
-            downloadLink.click();
-            alert('클립보드 복사에 실패했습니다. 이미지가 다운로드됩니다.');
-          }
+          // 완료 메시지
+          alert('테이블 이미지가 다운로드되었습니다.');
           
           // 로딩 표시 제거
           document.body.removeChild(loadingDiv);
         } catch (error) {
           console.error('테이블 캡처 중 오류 발생:', error);
-          alert('테이블 캡처 중 오류가 발생했습니다.');
+          alert('테이블 캡처 중 오류가 발생했습니다: ' + error.message);
+          // 로딩 표시가 남아있을 경우 제거
+          const loadingDiv = document.querySelector('.position-fixed.top-0.start-0.w-100.h-100');
+          if (loadingDiv) document.body.removeChild(loadingDiv);
         }
       });
     }
