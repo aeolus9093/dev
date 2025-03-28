@@ -1363,4 +1363,84 @@
         }
       }
     }
-{{ ... }}
+    
+    // 고성과자/저성과자 표시 함수
+    function displayPerformers(performersData) {
+      if (!performersData) return;
+      
+      try {
+        // Top 5 고성과자 표시
+        const topBody = document.getElementById('top-performers-body');
+        if (!topBody) return;
+        
+        topBody.innerHTML = '';
+        
+        if (performersData.top && performersData.top.length > 0) {
+          performersData.top.forEach((performer, index) => {
+            const row = topBody.insertRow();
+            
+            // 순위 셀 - 메달 아이콘 추가
+            const rankCell = row.insertCell(0);
+            
+            if (index < 3) {
+              // 메달 아이콘 (1-3위)
+              const medalIcons = [
+                '<i class="fas fa-trophy medal-gold"></i>',
+                '<i class="fas fa-medal medal-silver"></i>',
+                '<i class="fas fa-award medal-bronze"></i>'
+              ];
+              rankCell.innerHTML = `${medalIcons[index]} ${index + 1}위`;
+              rankCell.style.fontWeight = 'bold';
+            } else {
+              rankCell.textContent = `${index + 1}위`;
+            }
+            
+            // 나머지 셀 추가
+            row.insertCell(1).textContent = performer.dispatcher || '';
+            row.insertCell(2).textContent = performer.total || 0;
+            row.insertCell(3).textContent = performer.totalScore || 0;
+            
+            const opDispatchCell = row.insertCell(4);
+            if (performer.operatorDispatch !== undefined && performer.total) {
+              const ratio = Math.round((performer.operatorDispatch / performer.total) * 100);
+              opDispatchCell.textContent = `${performer.operatorDispatch} (${ratio}%)`;
+            } else {
+              opDispatchCell.textContent = '0 (0%)';
+            }
+            
+            row.insertCell(5).textContent = `${Math.round(performer.avgTime || 0)} 초`;
+          });
+        }
+        
+        // Bottom 5 저성과자 표시
+        const bottomBody = document.getElementById('bottom-performers-body');
+        if (!bottomBody) return;
+        
+        bottomBody.innerHTML = '';
+        
+        if (performersData.bottom && performersData.bottom.length > 0) {
+          performersData.bottom.forEach((performer, index) => {
+            const row = bottomBody.insertRow();
+            
+            // 셀 추가
+            row.insertCell(0).textContent = `${(performersData.totalCount || 0) - index}위`;
+            row.insertCell(1).textContent = performer.dispatcher || '';
+            row.insertCell(2).textContent = performer.total || 0;
+            row.insertCell(3).textContent = performer.totalScore || 0;
+            
+            const opDispatchCell = row.insertCell(4);
+            if (performer.operatorDispatch !== undefined && performer.total) {
+              const ratio = Math.round((performer.operatorDispatch / performer.total) * 100);
+              opDispatchCell.textContent = `${performer.operatorDispatch} (${ratio}%)`;
+            } else {
+              opDispatchCell.textContent = '0 (0%)';
+            }
+            
+            row.insertCell(5).textContent = `${Math.round(performer.avgTime || 0)} 초`;
+          });
+        }
+      } catch (error) {
+        console.error('성과자 데이터 표시 중 오류:', error);
+      }
+    }
+  </script>
