@@ -155,6 +155,39 @@
     </style>
   </head>
   <body>
+    <!-- 로딩 스피너 -->
+    <div id="loading" class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style="background-color: rgba(255,255,255,0.7); z-index: 9999; opacity: 0; transition: opacity 0.3s; display: none;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">로딩 중...</span>
+      </div>
+    </div>
+    
+    <!-- 네비게이션 바 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">배차 대시보드</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav me-auto">
+            <li class="nav-item">
+              <a class="nav-link active" href="#" id="refresh-btn">
+                <i class="fas fa-sync-alt"></i> 새로고침
+              </a>
+            </li>
+          </ul>
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="#" id="settings-btn" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                <i class="fas fa-cog"></i> 설정
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    
     <div class="container-fluid">
       <h1 class="dashboard-title">배차 실적 대시보드</h1>
       
@@ -164,17 +197,6 @@
           <span class="visually-hidden">로딩 중...</span>
         </div>
         <p class="mt-2">데이터를 불러오는 중입니다...</p>
-      </div>
-      
-      <div class="mb-3">
-        <button id="refreshButton" class="btn btn-outline-primary">
-          <i class="fas fa-sync-alt"></i> 데이터 새로고침
-        </button>
-        <span class="ms-2 mini-loader" style="display: none;">
-          <div class="spinner-border spinner-border-sm text-primary" role="status">
-            <span class="visually-hidden">로딩 중...</span>
-          </div>
-        </span>
       </div>
       
       <div id="dashboard-content" style="display: none; transition: opacity 0.5s ease-in-out;">
@@ -353,17 +375,30 @@
                         <th class="sortable" data-sort="operator">
                           오퍼레이터 배차 <i class="fas fa-sort"></i>
                         </th>
+                        <!-- 주석 처리된 컬럼 
                         <th class="sortable" data-sort="normal">
                           정상 이동 중 <i class="fas fa-sort"></i>
                         </th>
+                        -->
                         <th class="sortable" data-sort="cantProcess">
                           처리 불가 <i class="fas fa-sort"></i>
                         </th>
+                        <!-- 주석 처리된 컬럼 
                         <th class="sortable" data-sort="other">
                           기타 <i class="fas fa-sort"></i>
                         </th>
+                        -->
                         <th class="sortable" data-sort="avgTime">
                           평균 소요시간 <i class="fas fa-sort"></i>
+                        </th>
+                        <th class="sortable" data-sort="shift">
+                          근무 시프트 <i class="fas fa-sort"></i>
+                        </th>
+                        <th class="sortable" data-sort="workHours">
+                          근무시간 <i class="fas fa-sort"></i>
+                        </th>
+                        <th class="sortable" data-sort="goalAchievement">
+                          목표 달성 <i class="fas fa-sort"></i>
                         </th>
                       </tr>
                     </thead>
@@ -374,6 +409,32 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 설정 모달 -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="settingsModalLabel">대시보드 설정</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="workers-spreadsheet-url" class="form-label">근무자 실적 스프레드시트 URL</label>
+              <input type="text" class="form-control" id="workers-spreadsheet-url" placeholder="https://docs.google.com/spreadsheets/d/...">
+              <div class="form-text">근무자 실적 데이터가 있는 Google 스프레드시트 URL을 입력하세요.</div>
+            </div>
+            <div id="workers-data-status" class="alert alert-info">
+              <div id="last-update-time">마지막 업데이트: 없음</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            <button type="button" class="btn btn-primary" id="save-settings">저장</button>
           </div>
         </div>
       </div>
@@ -653,8 +714,8 @@
       const sortedData = getSortedAndFilteredData();
       
       sortedData.forEach(item => {
-        const dispatcher = item.dispatcher;
-        const s = dispatcherStatsData[dispatcher];
+        const dispatcher = item.name;
+        const s = item.data;
         
         const row = tableBody.insertRow();
         
@@ -668,6 +729,9 @@
         row.setAttribute('data-cantprocess', s.cantProcess);
         row.setAttribute('data-other', s.other);
         row.setAttribute('data-avgtime', Math.round(s.avgTime));
+        row.setAttribute('data-shift', s.shift);
+        row.setAttribute('data-workhours', s.workHours);
+        row.setAttribute('data-goalachievement', s.goalAchievement);
         
         // 셀 추가
         row.insertCell(0).textContent = dispatcher;
@@ -675,49 +739,51 @@
         row.insertCell(2).textContent = s.totalScore;
         row.insertCell(3).textContent = `${s.systemDispatch} (${Math.round(s.systemDispatch/s.total*100)}%)`;
         row.insertCell(4).textContent = `${s.operatorDispatch} (${Math.round(s.operatorDispatch/s.total*100)}%)`;
-        row.insertCell(5).textContent = `${s.normalMoving} (${Math.round(s.normalMoving/s.total*100)}%)`;
-        row.insertCell(6).textContent = `${s.cantProcess} (${Math.round(s.cantProcess/s.total*100)}%)`;
-        row.insertCell(7).textContent = `${s.other} (${Math.round(s.other/s.total*100)}%)`;
-        row.insertCell(8).textContent = `${Math.round(s.avgTime)} 초`;
+        // 정상 이동 중 컬럼 주석 처리
+        // row.insertCell(5).textContent = `${s.normalMoving} (${Math.round(s.normalMoving/s.total*100)}%)`;
+        row.insertCell(5).textContent = `${s.cantProcess} (${Math.round(s.cantProcess/s.total*100)}%)`;
+        // 기타 컬럼 주석 처리
+        // row.insertCell(7).textContent = `${s.other} (${Math.round(s.other/s.total*100)}%)`;
+        row.insertCell(6).textContent = `${Math.round(s.avgTime)} 초`;
+        row.insertCell(7).textContent = s.shift || '-';
+        row.insertCell(8).textContent = s.workHours || '-';
+        row.insertCell(9).textContent = s.goalAchievement || '-';
       });
     }
     
     // 정렬 및 필터링된 데이터 얻기
     function getSortedAndFilteredData() {
-      // 데이터 객체를 배열로 변환
-      const dataArray = Object.keys(dispatcherStatsData).map(dispatcher => {
-        return {
-          dispatcher: dispatcher,
+      // 담당자 이름으로 필터링
+      const filteredData = Object.keys(dispatcherStatsData)
+        .filter(dispatcher => {
+          if (!filterText) return true;
+          return dispatcher.toLowerCase().includes(filterText.toLowerCase());
+        })
+        .map(dispatcher => ({
+          name: dispatcher,
           data: dispatcherStatsData[dispatcher]
-        };
-      });
+        }));
       
-      // 필터링
-      const filteredData = dataArray.filter(item => {
-        if (!filterText) return true;
-        return item.dispatcher.toLowerCase().includes(filterText.toLowerCase());
-      });
-      
-      // 정렬
+      // 정렬이 없는 경우 기본 정렬(total 내림차순)으로 처리
       if (currentSort.direction === 'none') {
         return filteredData.sort((a, b) => b.data.total - a.data.total);
       }
       
+      // 정렬 방향에 따른 승수 결정
+      const direction = currentSort.direction === 'asc' ? 1 : -1;
+      
+      // 선택된 열에 따라 정렬
       filteredData.sort((a, b) => {
-        let direction = currentSort.direction === 'asc' ? 1 : -1;
-        
-        switch(currentSort.column) {
-          case 'dispatcher':
-            return direction * a.dispatcher.localeCompare(b.dispatcher);
-          case 'total':
-            return direction * (a.data.total - b.data.total);
-          case 'score':
+        switch (currentSort.column) {
+          case 'name':
+            return direction * a.name.localeCompare(b.name);
+          case 'totalScore':
             return direction * (a.data.totalScore - b.data.totalScore);
-          case 'system':
+          case 'systemDispatch':
             return direction * (a.data.systemDispatch - b.data.systemDispatch);
-          case 'operator':
+          case 'operatorDispatch':
             return direction * (a.data.operatorDispatch - b.data.operatorDispatch);
-          case 'normal':
+          case 'normalMoving':
             return direction * (a.data.normalMoving - b.data.normalMoving);
           case 'cantProcess':
             return direction * (a.data.cantProcess - b.data.cantProcess);
@@ -725,6 +791,12 @@
             return direction * (a.data.other - b.data.other);
           case 'avgTime':
             return direction * (a.data.avgTime - b.data.avgTime);
+          case 'shift':
+            return direction * (a.data.shift || '').localeCompare(b.data.shift || '');
+          case 'workHours':
+            return direction * (a.data.workHours || '').localeCompare(b.data.workHours || '');
+          case 'goalAchievement':
+            return direction * (a.data.goalAchievement || '').localeCompare(b.data.goalAchievement || '');
           default:
             return direction * (a.data.total - b.data.total);
         }
@@ -1165,7 +1237,7 @@
     // 문서 로드 완료 시 이벤트 리스너 설정
     document.addEventListener('DOMContentLoaded', function() {
       // 새로고침 버튼 클릭 이벤트
-      document.getElementById('refreshButton').addEventListener('click', function() {
+      document.getElementById('refresh-btn').addEventListener('click', function() {
         loadData(false); // 작은 로딩 표시만 보이게 새로고침
       });
       

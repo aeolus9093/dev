@@ -55,6 +55,9 @@ function doGet() {
     const resultIdx = 5;      // '배차 결과' 열
     const timeSpentIdx = 20;  // '소요시간' 열 (U열) -> 0부터 시작하므로 21번째 열은 20
     
+    // 근무자 실적 데이터 가져오기
+    const workersData = getWorkersPerformanceData();
+    
     // 점수 절반으로 계산할 특정 담당자 리스트
     const halfScoreDispatchers = [
       // 여기에 점수를 절반으로 계산할 담당자 이름을 추가하세요
@@ -87,6 +90,9 @@ function doGet() {
       
       // 담당자가 통계에 없으면 초기화
       if (!stats[dispatcher]) {
+        // 근무자 실적 데이터에서 해당 담당자 정보 찾기
+        const workerInfo = workersData[dispatcher] || { shift: '', workHours: '', goalAchievement: '' };
+        
         stats[dispatcher] = {
           total: 0,
           totalScore: 0,
@@ -98,7 +104,10 @@ function doGet() {
           totalTime: 0,
           avgTime: 0,
           timeSamples: [], // 개별 소요시간 샘플 저장
-          isHalfScore: halfScoreDispatchers.includes(dispatcher) // 특정 리스트에 포함되는지 여부
+          isHalfScore: halfScoreDispatchers.includes(dispatcher), // 특정 리스트에 포함되는지 여부
+          shift: workerInfo.shift, // 근무 시프트
+          workHours: workerInfo.workHours, // 근무시간
+          goalAchievement: workerInfo.goalAchievement // 목표 달성
         };
       }
       
@@ -154,6 +163,103 @@ function doGet() {
     });
     
     return stats;
+  }
+  
+  // 근무자 실적 데이터를 가져오는 함수
+  function getWorkersPerformanceData() {
+    try {
+      // 스크립트 속성에서 스프레드시트 URL 가져오기
+      const props = PropertiesService.getScriptProperties();
+      const spreadsheetUrl = props.getProperty('WORKERS_SPREADSHEET_URL');
+      
+      // URL이 없는 경우 기본값 사용 (또는 빈 객체 반환)
+      if (!spreadsheetUrl) {
+        console.log("근무자 실적 스프레드시트 URL이 설정되지 않았습니다.");
+        return {};
+      }
+      
+      const sourceSpreadsheet = SpreadsheetApp.openByUrl(spreadsheetUrl);
+      const workersSheet = sourceSpreadsheet.getSheetByName('근무자 실적');
+      
+      if (!workersSheet) {
+        console.error("'근무자 실적' 시트를 찾을 수 없습니다.");
+        return {};
+      }
+      
+      // 데이터 범위 가져오기
+      const dataRange = workersSheet.getDataRange();
+      const values = dataRange.getValues();
+      
+      // 헤더 행 제외
+      const data = values.slice(1);
+      
+      // 담당자별 데이터 매핑
+      const workersData = {};
+      
+      data.forEach(row => {
+        const dispatcherName = row[1]; // B열: 상담사(담당자) 이름
+        
+        // 담당자 이름이 있는 경우에만 처리
+        if (dispatcherName && dispatcherName.toString().trim() !== '') {
+          workersData[dispatcherName] = {
+            shift: row[2] || '', // C열: 근무 시프트
+            workHours: row[3] || '', // D열: 근무시간
+            goalAchievement: row[51] || '' // AZ열: 목표 달성
+          };
+        }
+      });
+      
+      // 마지막 업데이트 시간 저장
+      props.setProperty('LAST_WORKERS_DATA_UPDATE', new Date().toString());
+      
+      return workersData;
+    } catch (error) {
+      console.error("근무자 실적 데이터를 가져오는 중 오류 발생:", error);
+      return {};
+    }
+  }
+  
+  // 근무자 실적 스프레드시트 URL 설정 함수
+  function setWorkersSpreadsheetUrl(url) {
+    try {
+      const props = PropertiesService.getScriptProperties();
+      props.setProperty('WORKERS_SPREADSHEET_URL', url);
+      console.log("근무자 실적 스프레드시트 URL이 설정되었습니다:", url);
+      
+      // 트리거 생성 (4시간마다 데이터 업데이트)
+      createWorkerDataUpdateTrigger();
+      
+      return true;
+    } catch (error) {
+      console.error("URL 설정 중 오류 발생:", error);
+      return false;
+    }
+  }
+  
+  // 4시간마다 실행되는 근무자 실적 데이터 업데이트 트리거 생성
+  function createWorkerDataUpdateTrigger() {
+    // 기존 트리거 삭제
+    const triggers = ScriptApp.getProjectTriggers();
+    for (let i = 0; i < triggers.length; i++) {
+      if (triggers[i].getHandlerFunction() === 'updateWorkersData') {
+        ScriptApp.deleteTrigger(triggers[i]);
+      }
+    }
+    
+    // 새 트리거 생성 (4시간마다)
+    ScriptApp.newTrigger('updateWorkersData')
+      .timeBased()
+      .everyHours(4)
+      .create();
+    
+    console.log('4시간마다 근무자 실적 데이터를 업데이트하는 트리거가 생성되었습니다.');
+  }
+  
+  // 근무자 실적 데이터 업데이트 함수
+  function updateWorkersData() {
+    // 근무자 실적 데이터 가져오기
+    getWorkersPerformanceData();
+    console.log('근무자 실적 데이터가 업데이트되었습니다.');
   }
   
   // 시간 문자열을 초로 변환하는 함수
@@ -322,7 +428,10 @@ function doGet() {
           totalScore: stats.totalScore,
           operatorRatio: operatorRatio,
           avgTime: stats.avgTime
-        }
+        },
+        shift: stats.shift,
+        workHours: stats.workHours,
+        goalAchievement: stats.goalAchievement
       };
     });
     
@@ -440,15 +549,10 @@ function doGet() {
     
     return sortedResultStats;
   }
-
+  
   // 데이터 로드 함수
   function loadData(showSpinner = true) {
-    // 이전 타이머가 있으면 취소
-    if (refreshTimer) {
-      clearTimeout(refreshTimer);
-    }
-    
-    // 로딩 중 상태 설정
+    if (isLoading) return; // 이미 로드 중이면 중복 요청 방지
     isLoading = true;
     
     // 로딩 표시
@@ -458,6 +562,9 @@ function doGet() {
     }
     
     try {
+      // 근무자 실적 데이터 업데이트
+      updateWorkersData();
+      
       // 서버에서 데이터 가져오기
       const dispatchData = getDispatchData();
       
@@ -510,4 +617,27 @@ function doGet() {
         document.getElementById('dashboard-content').style.opacity = '1';
       }
     }
+  }
+  
+  // 웹앱 초기화 함수
+  function initializeApp() {
+    // 데이터 로드
+    loadData();
+    
+    // 근무자 실적 데이터 업데이트 트리거 생성
+    createWorkerDataUpdateTrigger();
+    
+    // 새로고침 버튼 이벤트 리스너 설정
+    document.getElementById('refresh-btn').addEventListener('click', function() {
+      loadData();
+    });
+    
+    // 차트 창 크기 조정 이벤트 리스너
+    window.addEventListener('resize', function() {
+      if (window.drawSummaryChart) window.drawSummaryChart();
+      if (window.drawDispatcherChart) window.drawDispatcherChart();
+      if (window.drawHourlyChart) window.drawHourlyChart();
+      if (window.drawResultChart) window.drawResultChart();
+      if (window.drawRegionChart) window.drawRegionChart();
+    });
   }
