@@ -1325,7 +1325,6 @@
     
       
     // 테이블 캡처 기능 설정
-    // 테이블 캡처 기능 설정
     function setupCaptureButton() {
       const captureButton = document.getElementById('capture-table');
       const statsTable = document.getElementById('dispatcher-stats-table');
@@ -1339,24 +1338,51 @@
           loadingDiv.innerHTML = '<div class="spinner-border text-light" role="status"><span class="visually-hidden">캡처 중...</span></div>';
           document.body.appendChild(loadingDiv);
           
+          // 캡처 전 스파크라인 색상 강제 적용
+          const sparklineCanvases = statsTable.querySelectorAll('canvas');
+          sparklineCanvases.forEach(canvas => {
+            // 캔버스 컨텍스트 가져오기
+            const ctx = canvas.getContext('2d');
+            // 캔버스 데이터 저장
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            // 캔버스 다시 그리기 (색상 강제 적용)
+            ctx.putImageData(imageData, 0, 0);
+          });
+          
           // 테이블 캡처
           const canvas = await html2canvas(statsTable, {
             backgroundColor: '#ffffff',
             scale: 2, // 고해상도로 캡처
             logging: false,
-            useCORS: true
+            useCORS: true,
+            allowTaint: true,
+            onclone: function(clonedDoc) {
+              // 클론된 문서에서 스파크라인 캔버스 찾기
+              const clonedSparklines = clonedDoc.querySelectorAll('canvas');
+              
+              // 원본 캔버스에서 클론된 캔버스로 이미지 데이터 복사
+              sparklineCanvases.forEach((originalCanvas, index) => {
+                if (index < clonedSparklines.length) {
+                  const clonedCanvas = clonedSparklines[index];
+                  const originalCtx = originalCanvas.getContext('2d');
+                  const clonedCtx = clonedCanvas.getContext('2d');
+                  
+                  // 원본 캔버스의 이미지 데이터 가져오기
+                  const imageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
+                  
+                  // 클론된 캔버스에 이미지 데이터 복사
+                  clonedCtx.putImageData(imageData, 0, 0);
+                }
+              });
+            }
           });
           
           // 캔버스를 이미지로 변환
           const imageData = canvas.toDataURL('image/png');
           
-          // 클립보드에 복사하기 위한 임시 요소 생성
-          const tempImg = document.createElement('img');
-          tempImg.src = imageData;
-          
           // 클립보드에 복사
           try {
-            // 새로운 ClipboardItem API 사용 (최신 브라우저)
+            // 원래 작동하던 방식으로 복원
             const blob = await (await fetch(imageData)).blob();
             await navigator.clipboard.write([
               new ClipboardItem({
@@ -1365,14 +1391,15 @@
             ]);
             alert('테이블이 클립보드에 복사되었습니다.');
           } catch (clipboardError) {
-            // 대체 방법: 이미지 다운로드
             console.error('클립보드 복사 실패:', clipboardError);
             
-            // 다운로드 링크 생성
+            // 대체 방법: 이미지 다운로드
             const downloadLink = document.createElement('a');
             downloadLink.href = imageData;
             downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
+            document.body.appendChild(downloadLink);
             downloadLink.click();
+            document.body.removeChild(downloadLink);
             alert('클립보드 복사에 실패했습니다. 이미지가 다운로드됩니다.');
           }
           
@@ -1380,7 +1407,13 @@
           document.body.removeChild(loadingDiv);
         } catch (error) {
           console.error('테이블 캡처 중 오류 발생:', error);
-          alert('테이블 캡처 중 오류가 발생했습니다.');
+          alert('테이블 캡처 중 오류가 발생했습니다: ' + error.message);
+          
+          // 로딩 표시가 남아있는 경우 제거
+          const loadingElement = document.querySelector('.position-fixed.bg-dark.bg-opacity-50');
+          if (loadingElement) {
+            document.body.removeChild(loadingElement);
+          }
         }
       });
     }
