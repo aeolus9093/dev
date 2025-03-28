@@ -595,80 +595,87 @@ function doGet() {
   
   // 배차 결과 유형별 통계
   function getDispatchResultStats() {
+    console.log('getDispatchResultStats 호출됨, rawData:', rawData ? rawData.length + '개 항목' : '데이터 없음');
+  
+    if (!rawData || rawData.length === 0) {
+      console.warn('원시 데이터가 없어 배차 결과 통계를 계산할 수 없습니다.');
+      return [];
+    }
+    
     try {
-      console.log('배차 결과 통계 계산 시작');
-      
-      // 배차 데이터가 없으면 빈 배열 반환
-      if (!rawData || !rawData.length) {
-        console.warn('배차 결과 통계 계산을 위한 원시 데이터가 없습니다.');
-        return [];
-      }
-      
-      // 결과 유형별 카운트
+      // 배차 결과별 카운트
       const resultCounts = {};
       let totalCount = 0;
       
-      // 각 배차 데이터에서 결과 카운트
+      // 데이터 형식 확인 (배열 또는 객체)
+      const isObjectArray = typeof rawData[0] === 'object' && !Array.isArray(rawData[0]);
+      
       rawData.forEach(row => {
-        // 배차결과 필드가 없으면 인덱스로 접근 시도
-        let result = row['배차결과'];
-        if (result === undefined) {
-          // 인덱스 기반 접근 (기존 코드와의 호환성)
-          const resultIdx = 5; // 배차 결과 열 인덱스
-          if (Array.isArray(row) && row.length > resultIdx) {
-            result = row[resultIdx];
-          }
+        let result;
+        
+        if (isObjectArray) {
+          // 객체 배열인 경우
+          result = row['배차결과'] || row['배차 결과'];
+        } else {
+          // 2차원 배열인 경우 (5번 인덱스가 배차 결과라고 가정)
+          result = row[5];
         }
         
-        result = result || '미확인';
-        resultCounts[result] = (resultCounts[result] || 0) + 1;
-        totalCount++;
+        if (result) {
+          resultCounts[result] = (resultCounts[result] || 0) + 1;
+          totalCount++;
+        }
       });
       
-      // 결과 통계 배열로 변환
+      console.log('배차 결과 카운트:', resultCounts, '총 건수:', totalCount);
+      
+      // 결과를 배열로 변환
       const resultStats = Object.keys(resultCounts).map(result => {
+        const count = resultCounts[result];
+        const percentage = (count / totalCount * 100).toFixed(1);
         return {
           result: result,
-          count: resultCounts[result],
-          percentage: (resultCounts[result] / totalCount * 100).toFixed(1)
+          count: count,
+          percentage: parseFloat(percentage)
         };
       });
       
-      // 카운트 기준 내림차순 정렬
+      // 건수 기준 내림차순 정렬
       resultStats.sort((a, b) => b.count - a.count);
       
-      console.log('배차 결과 통계 계산 완료:', resultStats.length + '개 항목');
+      console.log('배차 결과 통계 계산 완료:', resultStats);
       return resultStats;
     } catch (error) {
-      console.error('배차 결과 통계 계산 중 오류:', error);
+      console.error('배차 결과 통계 계산 중 오류 발생:', error);
       return [];
     }
   }
 
   // 지역별 통계
   function getRegionStats() {
+    console.log('getRegionStats 호출됨, rawData:', rawData ? rawData.length + '개 항목' : '데이터 없음');
+  
+    if (!rawData || rawData.length === 0) {
+      console.warn('원시 데이터가 없어 지역별 통계를 계산할 수 없습니다.');
+      return [];
+    }
+    
     try {
-      console.log('지역별 통계 계산 시작');
-      
-      // 배차 데이터가 없으면 빈 배열 반환
-      if (!rawData || !rawData.length) {
-        console.warn('지역별 통계 계산을 위한 원시 데이터가 없습니다.');
-        return [];
-      }
-      
       // 지역별 카운트
       const regionCounts = {};
       
-      // 각 배차 데이터에서 지역 카운트
+      // 데이터 형식 확인 (배열 또는 객체)
+      const isObjectArray = typeof rawData[0] === 'object' && !Array.isArray(rawData[0]);
+      
       rawData.forEach(row => {
-        // 지역 필드가 없으면 인덱스로 접근 시도
-        let region = row['지역'];
-        if (region === undefined) {
-          // 인덱스 기반 접근 (기존 코드와의 호환성)
-          const regionIdx = 13; // 지역 열 인덱스
-          if (Array.isArray(row) && row.length > regionIdx) {
-            region = row[regionIdx];
-          }
+        let region;
+        
+        if (isObjectArray) {
+          // 객체 배열인 경우
+          region = row['지역'] || row['출발지역'];
+        } else {
+          // 2차원 배열인 경우 (3번 인덱스가 지역이라고 가정)
+          region = row[3];
         }
         
         region = region || '미확인';
@@ -689,7 +696,7 @@ function doGet() {
       console.log('지역별 통계 계산 완료:', regionStats.length + '개 항목');
       return regionStats;
     } catch (error) {
-      console.error('지역별 통계 계산 중 오류:', error);
+      console.error('지역별 통계 계산 중 오류 발생:', error);
       return [];
     }
   }
@@ -807,80 +814,76 @@ function doGet() {
           .withSuccessHandler((data) => {
             workPerformanceData = data || {};  // null이면 빈 객체로 초기화
             console.log('근무자 실적 데이터 로드 완료');
-            resolve();
+            resolve(data);
           })
           .withFailureHandler((error) => {
             console.error('근무자 실적 데이터 로드 오류:', error);
             workPerformanceData = {};  // 오류 발생 시 빈 객체로 초기화
-            resolve();
+            resolve(null);
           })
           .getWorkPerformanceData();
       });
       
       console.log('모든 Promise 생성 완료, Promise.all 시작');
       
-      // 먼저 원시 데이터를 로드한 후 다른 데이터 처리
-      getDispatchDataPromise.then(() => {
-        // 모든 데이터를 한 번에 로드
-        Promise.all([getSummaryData, getDispatcherData, getHourlyData, getPerformersData, loadWorkPerformanceData])
-          .then(([summary, dispatcherStats, hourlyStats, performers]) => {
-            console.log('Promise.all 완료, 데이터 처리 시작');
-            
-            // 배차 결과 통계 계산
-            let dispatchResultStats = [];
-            try {
-              dispatchResultStats = getDispatchResultStats();
-              console.log('배차 결과 통계 계산 완료:', dispatchResultStats.length + '개 항목');
-            } catch (error) {
-              console.error('배차 결과 통계 계산 오류:', error);
-            }
-            
-            // 지역별 통계 계산
-            let regionStats = [];
-            try {
-              regionStats = getRegionStats();
-              console.log('지역별 통계 계산 완료:', regionStats.length + '개 항목');
-            } catch (error) {
-              console.error('지역별 통계 계산 오류:', error);
-            }
-            
-            // 모든 데이터를 하나의 객체로 통합
-            const dashboardData = {
-              summary: summary,
-              dispatcherStats: dispatcherStats,
-              hourlyStats: hourlyStats,
-              performers: performers,
-              dispatchResultStats: dispatchResultStats,
-              regionStats: regionStats
-            };
-            
-            console.log('데이터 통합 완료, processData 호출');
-            processData(dashboardData);
-            
-            // 로딩 숨기기
-            if (showSpinner) {
-              hideLoading();
-            }
-            
-            isLoading = false;
-            console.log('데이터 로드 완료');
-          })
-          .catch((error) => {
-            console.error('데이터 로드 중 오류 발생:', error);
-            showError('데이터를 가져오는데 실패했습니다.');
-            if (showSpinner) {
-              hideLoading();
-            }
-            isLoading = false;
-          });
-      }).catch((error) => {
-        console.error('원시 데이터 로드 중 오류 발생:', error);
-        showError('원시 데이터를 가져오는데 실패했습니다.');
-        if (showSpinner) {
-          hideLoading();
-        }
-        isLoading = false;
-      });
+      // 먼저 원시 데이터를 로드
+      getDispatchDataPromise
+        .then((rawDataResult) => {
+          console.log('원시 데이터 로드 완료, 다른 데이터 로드 시작');
+          
+          // 원시 데이터가 로드되면 다른 데이터 로드
+          return Promise.all([getSummaryData, getDispatcherData, getHourlyData, getPerformersData, loadWorkPerformanceData])
+            .then(([summary, dispatcherStats, hourlyStats, performers, workPerformance]) => {
+              console.log('모든 데이터 로드 완료, 통계 계산 시작');
+              
+              // 배차 결과 통계 계산
+              let dispatchResultStats = [];
+              try {
+                dispatchResultStats = getDispatchResultStats();
+                console.log('배차 결과 통계 계산 완료:', dispatchResultStats.length + '개 항목');
+              } catch (error) {
+                console.error('배차 결과 통계 계산 오류:', error);
+              }
+              
+              // 지역별 통계 계산
+              let regionStats = [];
+              try {
+                regionStats = getRegionStats();
+                console.log('지역별 통계 계산 완료:', regionStats.length + '개 항목');
+              } catch (error) {
+                console.error('지역별 통계 계산 오류:', error);
+              }
+              
+              // 모든 데이터를 하나의 객체로 통합
+              const dashboardData = {
+                summary: summary,
+                dispatcherStats: dispatcherStats,
+                hourlyStats: hourlyStats,
+                performers: performers,
+                dispatchResultStats: dispatchResultStats,
+                regionStats: regionStats
+              };
+              
+              console.log('데이터 통합 완료, processData 호출');
+              processData(dashboardData);
+              
+              // 로딩 숨기기
+              if (showSpinner) {
+                hideLoading();
+              }
+              
+              isLoading = false;
+              console.log('데이터 로드 완료');
+            });
+        })
+        .catch((error) => {
+          console.error('데이터 로드 중 오류 발생:', error);
+          showError('데이터를 가져오는데 실패했습니다.');
+          if (showSpinner) {
+            hideLoading();
+          }
+          isLoading = false;
+        });
     } catch (error) {
       console.error('loadData 실행 중 오류:', error);
       showError('데이터 로드 중 오류가 발생했습니다.');
