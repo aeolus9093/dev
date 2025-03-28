@@ -1943,6 +1943,13 @@
         loadData();
       });
       
+      // 정렬 및 필터 이벤트 리스너 설정
+      setupSortListeners();
+      setupFilterListeners();
+      
+      // 캡처 버튼 이벤트 리스너 설정
+      setupCaptureButton();
+      
       // 차트 표시 수정 (지연 적용)
       setTimeout(function() {
         fixChartDisplay();
