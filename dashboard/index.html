@@ -1225,42 +1225,73 @@
     function displaySummary(summary) {
       if (!summary) return;
       
-      // 요약 카드 업데이트
-      document.getElementById('total-count').textContent = summary.total;
-      
-      // 시스템 배차 비율 계산
-      let systemCount = 0;
-      if (summary.dispatchResults['시스템 배차']) {
-        systemCount = summary.dispatchResults['시스템 배차'];
+      try {
+        // 요약 카드 업데이트
+        if (document.getElementById('total-count')) {
+          document.getElementById('total-count').textContent = summary.total || 0;
+        }
+        
+        // dispatchResults가 존재하는지 확인
+        if (summary.dispatchResults) {
+          // 시스템 배차 비율 계산
+          let systemCount = 0;
+          if (summary.dispatchResults['시스템 배차']) {
+            systemCount = summary.dispatchResults['시스템 배차'];
+          }
+          const systemRate = Math.round((systemCount / (summary.total || 1)) * 100);
+          
+          if (document.getElementById('system-dispatch-rate')) {
+            document.getElementById('system-dispatch-rate').textContent = `${systemRate}%`;
+          }
+          
+          // 오퍼레이터 배차 비율 계산
+          let operatorCount = 0;
+          if (summary.dispatchResults['오퍼레이터 배차']) {
+            operatorCount = summary.dispatchResults['오퍼레이터 배차'];
+          }
+          const operatorRate = Math.round((operatorCount / (summary.total || 1)) * 100);
+          
+          if (document.getElementById('operator-dispatch-rate')) {
+            document.getElementById('operator-dispatch-rate').textContent = `${operatorRate}%`;
+          }
+        } else {
+          console.warn('dispatchResults가 정의되지 않았습니다.');
+          // 기본값 설정
+          if (document.getElementById('system-dispatch-rate')) {
+            document.getElementById('system-dispatch-rate').textContent = '0%';
+          }
+          if (document.getElementById('operator-dispatch-rate')) {
+            document.getElementById('operator-dispatch-rate').textContent = '0%';
+          }
+        }
+        
+        // 평균 지연 시간 표시
+        if (document.getElementById('avg-delay-time')) {
+          document.getElementById('avg-delay-time').textContent = Math.round(summary.avgDelayTime || 0);
+        }
+        
+        // 지역별 차트 데이터 생성
+        const regionChartData = [['지역', '건수']];
+        
+        // 지역 데이터가 있는 경우에만 처리
+        if (summary.regions) {
+          // 데이터 정렬 (건수 기준 내림차순)
+          const sortedRegions = Object.keys(summary.regions)
+            .map(region => ({ region, count: summary.regions[region] }))
+            .sort((a, b) => b.count - a.count);
+          
+          sortedRegions.forEach(item => {
+            regionChartData.push([`지역 ${item.region}`, item.count]);
+          });
+          
+          // 지역별 차트 그리기 (분리된 함수 호출)
+          if (typeof displayRegionChart === 'function') {
+            displayRegionChart(regionChartData);
+          }
+        }
+      } catch (error) {
+        console.error('요약 통계 표시 중 오류 발생:', error);
       }
-      const systemRate = Math.round(systemCount / summary.total * 100);
-      document.getElementById('system-dispatch-rate').textContent = `${systemRate}%`;
-      
-      // 오퍼레이터 배차 비율 계산
-      let operatorCount = 0;
-      if (summary.dispatchResults['오퍼레이터 배차']) {
-        operatorCount = summary.dispatchResults['오퍼레이터 배차'];
-      }
-      const operatorRate = Math.round(operatorCount / summary.total * 100);
-      document.getElementById('operator-dispatch-rate').textContent = `${operatorRate}%`;
-      
-      // 평균 지연 시간 표시
-      document.getElementById('avg-delay-time').textContent = Math.round(summary.avgDelayTime);
-      
-      // 지역별 차트 데이터 생성
-      const regionChartData = [['지역', '건수']];
-      
-      // 데이터 정렬 (건수 기준 내림차순)
-      const sortedRegions = Object.keys(summary.regions)
-        .map(region => ({ region, count: summary.regions[region] }))
-        .sort((a, b) => b.count - a.count);
-      
-      sortedRegions.forEach(item => {
-        regionChartData.push([`지역 ${item.region}`, item.count]);
-      });
-      
-      // 지역별 차트 그리기 (분리된 함수 호출)
-      displayRegionChart(regionChartData);
     }
     
     // 시간대별 통계 표시
@@ -1268,6 +1299,7 @@
       if (!hourlyStats || hourlyStats.length === 0) return;
       
       const chartContainer = document.getElementById('hourly-chart');
+      if (!chartContainer) return;
       
       try {
         // DataTable 생성
@@ -1320,414 +1352,15 @@
           try {
             chart.draw(dataTable, options);
           } catch(e) {
-            console.error("Error drawing hourly chart:", e);
+            console.error("시간대별 차트 그리기 오류:", e);
           }
         };
       
       } catch (e) {
-        console.error("Error creating hourly chart:", e);
-        chartContainer.innerHTML = '<div class="alert alert-warning">차트 로드 중 오류가 발생했습니다.</div>';
-      }
-    }
-    
-    // 고성과자/저성과자 표시 함수
-    function displayPerformers(performersData) {
-      if (!performersData) return;
-      
-      // Top 5 고성과자 표시
-      const topBody = document.getElementById('top-performers-body');
-      topBody.innerHTML = '';
-      
-      performersData.top.forEach((performer, index) => {
-        const row = topBody.insertRow();
-        
-        // 순위 셀 - 메달 아이콘 추가
-        const rankCell = row.insertCell(0);
-        
-        if (index < 3) {
-          // 메달 아이콘 (1-3위)
-          const medalIcons = [
-            '<i class="fas fa-trophy medal-gold"></i>',
-            '<i class="fas fa-medal medal-silver"></i>',
-            '<i class="fas fa-award medal-bronze"></i>'
-          ];
-          rankCell.innerHTML = `${medalIcons[index]} ${index + 1}위`;
-          rankCell.style.fontWeight = 'bold';
-        } else {
-          rankCell.textContent = `${index + 1}위`;
+        console.error("시간대별 차트 생성 오류:", e);
+        if (chartContainer) {
+          chartContainer.innerHTML = '<div class="alert alert-warning">차트 로드 중 오류가 발생했습니다.</div>';
         }
-        
-        // 나머지 셀 추가
-        row.insertCell(1).textContent = performer.dispatcher;
-        row.insertCell(2).textContent = performer.total;
-        row.insertCell(3).textContent = performer.totalScore;
-        row.insertCell(4).textContent = `${performer.operatorDispatch} (${Math.round(performer.operatorDispatch/performer.total*100)}%)`;
-        row.insertCell(5).textContent = `${Math.round(performer.avgTime)} 초`;
-      });
-      
-      // Bottom 5 저성과자 표시
-      const bottomBody = document.getElementById('bottom-performers-body');
-      bottomBody.innerHTML = '';
-      
-      performersData.bottom.forEach((performer, index) => {
-        const row = bottomBody.insertRow();
-        
-        // 셀 추가
-        row.insertCell(0).textContent = `${performersData.totalCount - index}위`;
-        row.insertCell(1).textContent = performer.dispatcher;
-        row.insertCell(2).textContent = performer.total;
-        row.insertCell(3).textContent = performer.totalScore;
-        row.insertCell(4).textContent = `${performer.operatorDispatch} (${Math.round(performer.operatorDispatch/performer.total*100)}%)`;
-        row.insertCell(5).textContent = `${Math.round(performer.avgTime)} 초`;
-      });
-    }
-    
-    // 배차 결과 통계 표시
-    function displayDispatchResultStats(resultStats) {
-      if (!resultStats || resultStats.length === 0) return;
-      
-      const chartContainer = document.getElementById('dispatch-result-chart');
-      
-      try {
-        // DataTable 생성
-        const dataTable = new google.visualization.DataTable();
-        dataTable.addColumn('string', '배차 결과');
-        dataTable.addColumn('number', '건수');
-        
-        // 행 추가
-        resultStats.forEach(stat => {
-          dataTable.addRow([stat.result, stat.count]);
-        });
-        
-        // 차트 옵션
-        const options = {
-          title: '배차 결과 분포',
-          chartArea: {
-            left: 30,
-            top: 30,
-            width: '60%',
-            height: '75%'
-          },
-          pieHole: 0.4,
-          colors: ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#8E24AA'],
-          legend: {
-            position: 'right',
-            alignment: 'center',
-            textStyle: {
-              fontSize: 12
-            }
-          },
-          tooltip: {
-            showColorCode: true,
-            text: 'both',
-            isHtml: true
-          },
-          pieSliceText: 'value',
-          width: '100%',
-          height: '100%'
-        };
-        
-        // 차트 그리기
-        const chart = new google.visualization.PieChart(chartContainer);
-        chart.draw(dataTable, options);
-        
-        // 전역 함수 정의
-        window.drawResultChart = function() {
-          try {
-            chart.draw(dataTable, options);
-          } catch(e) {
-            console.error("Error drawing result chart:", e);
-          }
-        };
-      
-      } catch (e) {
-        console.error("Error creating result chart:", e);
-        chartContainer.innerHTML = '<div class="alert alert-warning">차트 로드 중 오류가 발생했습니다.</div>';
       }
     }
-    
-    // 전체 요약 통계 표시에서 지역별 차트 수정
-    function displayRegionChart(regionData) {
-      if (!regionData || regionData.length <= 1) return;
-      
-      const chartContainer = document.getElementById('region-chart');
-      
-      try {
-        // 차트 데이터 변환
-        const dataTable = google.visualization.arrayToDataTable(regionData);
-        
-        // 차트 옵션
-        const options = {
-          title: '지역별 배차 건수',
-          chartArea: {
-            left: 30,
-            top: 30,
-            width: '60%',
-            height: '75%'
-          },
-          pieHole: 0.4,
-          colors: ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#8E24AA', '#3949AB', '#039BE5', '#43A047'],
-          legend: {
-            position: 'right',
-            alignment: 'center',
-            textStyle: {
-              fontSize: 12
-            }
-          },
-          tooltip: {
-            showColorCode: true
-          },
-          pieSliceText: 'value',
-          width: '100%',
-          height: '100%'
-        };
-        
-        // 차트 그리기
-        const chart = new google.visualization.PieChart(chartContainer);
-        chart.draw(dataTable, options);
-        
-        // 전역 함수 정의
-        window.drawRegionChart = function() {
-          try {
-            chart.draw(dataTable, options);
-          } catch(e) {
-            console.error("Error drawing region chart:", e);
-          }
-        };
-      
-      } catch (e) {
-        console.error("Error creating region chart:", e);
-        chartContainer.innerHTML = '<div class="alert alert-warning">차트 로드 중 오류가 발생했습니다.</div>';
-      }
-    }
-    
-    // 오류 처리
-    function handleError(error) {
-      console.error('Error:', error);
-      document.getElementById('loading').innerHTML = `
-        <div class="alert alert-danger" role="alert">
-          데이터를 로드하는 중 오류가 발생했습니다: ${error}
-        </div>`;
-      
-      // 미니 로더 숨기기
-      const miniLoaders = document.querySelectorAll('.mini-loader');
-      miniLoaders.forEach(loader => {
-        loader.style.display = 'none';
-      });
-      
-      // 로딩 상태 해제
-      isLoading = false;
-    }
-    
-    // 차트 컨테이너 크기 설정 및 모든 차트 다시 그리기
-    function fixChartDisplay() {
-      // 모든 차트 컨테이너의 스타일 수정
-      setChartContainersFullWidth();
-      
-      // 저장된 차트 다시 그리기 함수 호출
-      if (typeof window.drawResultChart === 'function') window.drawResultChart();
-      if (typeof window.drawRegionChart === 'function') window.drawRegionChart();
-      if (typeof window.drawHourlyChart === 'function') window.drawHourlyChart();
-      if (typeof window.drawDispatcherChart === 'function') window.drawDispatcherChart();
-    }
-    
-    // 차트 컨테이너를 전체 너비로 설정하는 함수
-    function setChartContainersFullWidth() {
-      const chartContainers = document.querySelectorAll('.chart-container');
-      chartContainers.forEach(container => {
-        // 명시적 크기 설정
-        container.style.width = '100%';
-        container.style.height = '300px';
-        container.style.minHeight = '300px';
-        container.style.position = 'relative';
-        container.style.overflow = 'visible';
-        
-        // 내부 요소도 100%로 설정
-        const innerElements = container.querySelectorAll('div');
-        innerElements.forEach(el => {
-          el.style.width = '100%';
-          el.style.height = '100%';
-        });
-      });
-    }
-    
-    // 자동 새로고침 설정
-    function setupAutoRefresh() {
-      // 이전 타이머 제거
-      if (refreshTimer) {
-        clearInterval(refreshTimer);
-      }
-      
-      // 5분(300000밀리초)마다 데이터 새로고침 (로딩 스피너 없이)
-      refreshTimer = setInterval(() => {
-        loadData(false);
-      }, 300000);
-    }
-    
-    // 데이터 가져오기
-    async function fetchData() {
-      try {
-        // 여기서는 샘플 데이터를 반환합니다.
-        // 실제 환경에서는 서버에서 데이터를 가져오는 API 호출을 구현해야 합니다.
-        return {
-          dispatcherStats: {
-            "김철수": { total: 120, totalScore: 95, systemDispatch: 30, operatorDispatch: 70, normalMoving: 10, cantProcess: 5, other: 5, totalTime: 3600, avgTime: 30, timeSamples: [25, 28, 30, 32, 35] },
-            "이영희": { total: 80, totalScore: 60, systemDispatch: 40, operatorDispatch: 30, normalMoving: 5, cantProcess: 3, other: 2, totalTime: 2000, avgTime: 25, timeSamples: [20, 22, 25, 27, 30] },
-            "박지성": { total: 150, totalScore: 120, systemDispatch: 50, operatorDispatch: 80, normalMoving: 10, cantProcess: 8, other: 2, totalTime: 4500, avgTime: 30, timeSamples: [28, 29, 30, 31, 32] },
-            "최민수": { total: 100, totalScore: 85, systemDispatch: 30, operatorDispatch: 60, normalMoving: 5, cantProcess: 4, other: 1, totalTime: 2800, avgTime: 28, timeSamples: [25, 27, 28, 29, 30] },
-            "정다운": { total: 200, totalScore: 180, systemDispatch: 60, operatorDispatch: 120, normalMoving: 15, cantProcess: 3, other: 2, totalTime: 5600, avgTime: 28, timeSamples: [26, 27, 28, 29, 30] },
-            "한지민": { total: 90, totalScore: 70, systemDispatch: 40, operatorDispatch: 40, normalMoving: 5, cantProcess: 4, other: 1, totalTime: 2700, avgTime: 30, timeSamples: [28, 29, 30, 31, 32] },
-            "송혜교": { total: 110, totalScore: 90, systemDispatch: 35, operatorDispatch: 65, normalMoving: 5, cantProcess: 3, other: 2, totalTime: 3000, avgTime: 27, timeSamples: [25, 26, 27, 28, 29] },
-            "이병헌": { total: 130, totalScore: 110, systemDispatch: 40, operatorDispatch: 80, normalMoving: 5, cantProcess: 3, other: 2, totalTime: 3500, avgTime: 27, timeSamples: [25, 26, 27, 28, 29] }
-          },
-          summary: {
-            total: 980,
-            totalScore: 810,
-            systemDispatch: 325,
-            operatorDispatch: 545,
-            normalMoving: 60,
-            cantProcess: 33,
-            other: 17,
-            avgTime: 28
-          },
-          hourlyStats: {
-            "00:00": { total: 20, systemDispatch: 8, operatorDispatch: 10, other: 2 },
-            "01:00": { total: 15, systemDispatch: 5, operatorDispatch: 8, other: 2 },
-            "02:00": { total: 10, systemDispatch: 3, operatorDispatch: 5, other: 2 },
-            "03:00": { total: 5, systemDispatch: 2, operatorDispatch: 2, other: 1 },
-            "04:00": { total: 5, systemDispatch: 2, operatorDispatch: 2, other: 1 },
-            "05:00": { total: 10, systemDispatch: 3, operatorDispatch: 5, other: 2 },
-            "06:00": { total: 20, systemDispatch: 8, operatorDispatch: 10, other: 2 },
-            "07:00": { total: 30, systemDispatch: 10, operatorDispatch: 18, other: 2 },
-            "08:00": { total: 50, systemDispatch: 15, operatorDispatch: 30, other: 5 },
-            "09:00": { total: 70, systemDispatch: 25, operatorDispatch: 40, other: 5 },
-            "10:00": { total: 80, systemDispatch: 30, operatorDispatch: 45, other: 5 },
-            "11:00": { total: 85, systemDispatch: 30, operatorDispatch: 50, other: 5 },
-            "12:00": { total: 70, systemDispatch: 25, operatorDispatch: 40, other: 5 },
-            "13:00": { total: 75, systemDispatch: 25, operatorDispatch: 45, other: 5 },
-            "14:00": { total: 85, systemDispatch: 30, operatorDispatch: 50, other: 5 },
-            "15:00": { total: 90, systemDispatch: 35, operatorDispatch: 50, other: 5 },
-            "16:00": { total: 80, systemDispatch: 30, operatorDispatch: 45, other: 5 },
-            "17:00": { total: 70, systemDispatch: 25, operatorDispatch: 40, other: 5 },
-            "18:00": { total: 50, systemDispatch: 15, operatorDispatch: 30, other: 5 },
-            "19:00": { total: 30, systemDispatch: 10, operatorDispatch: 18, other: 2 },
-            "20:00": { total: 20, systemDispatch: 8, operatorDispatch: 10, other: 2 },
-            "21:00": { total: 15, systemDispatch: 5, operatorDispatch: 8, other: 2 },
-            "22:00": { total: 10, systemDispatch: 3, operatorDispatch: 5, other: 2 },
-            "23:00": { total: 5, systemDispatch: 2, operatorDispatch: 2, other: 1 }
-          },
-          resultStats: {
-            "시스템 배차": 325,
-            "오퍼레이터 배차": 545,
-            "정상 이동 중으로 확인": 60,
-            "처리 불가": 33,
-            "기타": 17
-          },
-          performers: {
-            top: ["정다운", "박지성", "이병헌", "김철수", "송혜교"],
-            bottom: ["이영희", "한지민", "최민수"]
-          }
-        };
-      } catch (error) {
-        console.error('데이터 가져오기 오류:', error);
-        return null;
-      }
-    }
-    
-    // 데이터 처리
-    function processData(data) {
-      // 차트 데이터 저장
-      chartData = data;
-      
-      // 각 섹션 데이터 표시
-      displayDispatcherStats(data.dispatcherStats);
-      displaySummary(data.summary);
-      displayHourlyStats(data.hourlyStats);
-      displayDispatchResultStats(data.resultStats);
-      displayPerformers(data.performers);
-      
-      console.log('데이터 처리 완료');
-    }
-    
-    // 로딩 표시 함수
-    function showLoading() {
-      document.getElementById('loading').style.opacity = '1';
-      document.getElementById('loading').style.display = 'block';
-    }
-    
-    // 로딩 숨기기 함수
-    function hideLoading() {
-      document.getElementById('loading').style.opacity = '0';
-      setTimeout(() => {
-        document.getElementById('loading').style.display = 'none';
-      }, 300);
-    }
-    
-    // 에러 표시 함수
-    function showError(message) {
-      const errorDiv = document.getElementById('error-message');
-      errorDiv.textContent = message;
-      errorDiv.style.display = 'block';
-      
-      // 3초 후 에러 메시지 숨기기
-      setTimeout(() => {
-        errorDiv.style.opacity = '0';
-        setTimeout(() => {
-          errorDiv.style.display = 'none';
-          errorDiv.style.opacity = '1';
-        }, 300);
-      }, 3000);
-    }
-    
-    // 문서 로드 완료 시 이벤트 리스너 설정
-    document.addEventListener('DOMContentLoaded', function() {
-      // 새로고침 버튼 클릭 이벤트
-      document.getElementById('refreshButton').addEventListener('click', function() {
-        loadData(false, true); // 작은 로딩 표시만 보이게 새로고침, 근무자 실적 데이터 강제 새로고침
-      });
-      
-      // 모든 차트 컨테이너 최대 너비 설정
-      setChartContainersFullWidth();
-      
-      // 창 크기 변경 시 차트 컨테이너 크기 조정
-      window.addEventListener('resize', function() {
-        setChartContainersFullWidth();
-        
-        // 차트 다시 그리기
-        if (typeof window.drawResultChart === 'function') window.drawResultChart();
-        if (typeof window.drawRegionChart === 'function') window.drawRegionChart();
-        if (typeof window.drawHourlyChart === 'function') window.drawHourlyChart();
-        if (typeof window.drawDispatcherChart === 'function') window.drawDispatcherChart();
-      });
-      
-      // Font Awesome 스타일 추가
-      const fontAwesome = document.createElement('link');
-      fontAwesome.rel = 'stylesheet';
-      fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css';
-      document.head.appendChild(fontAwesome);
-      
-      // 초기화 함수
-      function init() {
-        // 데이터 로드
-        loadData();
-        
-        // 이벤트 리스너 설정
-        setupSortListeners();
-        setupFilterListeners();
-        setupCaptureButton();
-      }
-      
-      init();
-    });
-    
-    // 페이지 완전 로드 후 차트 다시 그리기
-    window.addEventListener('load', function() {
-      // 페이지 완전 로드 후 모든 차트 다시 그리기
-      setTimeout(function() {
-        console.log("Window fully loaded - fixing charts");
-        fixChartDisplay();
-      }, 1000);
-    });
-  </script>
-  </body>
-</html>
+{{ ... }}
