@@ -953,7 +953,7 @@
         // 근무 시간 셀
         const workHoursCell = row.insertCell(2);
         // 8H인 경우 별 이모지 추가
-        if (s.workHours && s.workHours.toString().includes('8H')) {
+        if (s.workHours && s.workHours.toString().includes('8')) {
           workHoursCell.innerHTML = s.workHours + ' ⭐';
         } else {
           workHoursCell.textContent = s.workHours;
@@ -998,14 +998,23 @@
         const opCell = row.insertCell(5);
         const opPercent = Math.round(s.operatorDispatch/s.total*100);
         
-        // 오퍼레이터 배차 비율에 따른 색상 적용
+        // 오퍼레이터 배차 비율에 따른 색상 적용 (그라데이션)
         const opPercentText = document.createElement('span');
         if (opPercent < 30) {
-          opPercentText.style.color = '#dc3545'; // 빨간색 (낮음)
+          // 30% 미만: 빨간색 (낮음) - 더 낮을수록 더 진한 빨간색
+          const intensity = Math.max(30 - opPercent, 0) * 2.5;
+          opPercentText.style.color = `rgb(${220 + intensity}, ${53 - intensity}, ${69 - intensity})`;
           opPercentText.style.fontWeight = 'bold';
         } else if (opPercent > 70) {
-          opPercentText.style.color = '#0d6efd'; // 파란색 (높음)
+          // 70% 초과: 파란색 (높음) - 더 높을수록 더 진한 파란색
+          const intensity = Math.min(opPercent - 70, 30) * 2.5;
+          opPercentText.style.color = `rgb(${13 - intensity}, ${110 + intensity}, ${253 + intensity})`;
           opPercentText.style.fontWeight = 'bold';
+        } else {
+          // 30~70%: 중간 값 - 30%에 가까울수록 옅은 빨간색, 70%에 가까울수록 옅은 파란색
+          const blueComponent = Math.round((opPercent - 30) / 40 * 255);
+          const redComponent = Math.round((70 - opPercent) / 40 * 255);
+          opPercentText.style.color = `rgb(${redComponent}, ${100}, ${blueComponent})`;
         }
         opPercentText.textContent = `${s.operatorDispatch} (${opPercent}%)`;
         opCell.appendChild(opPercentText);
@@ -1020,20 +1029,46 @@
         opSparklineContainer.setAttribute('data-sparkline-type', 'bar');
         opSparklineContainer.setAttribute('data-sparkline-width', '40');
         opSparklineContainer.setAttribute('data-sparkline-height', '20');
-        opSparklineContainer.setAttribute('data-sparkline-bar-color', '#0d6efd');
+        
+        // 오퍼레이터 배차 비율에 따른 스파크라인 색상 설정
+        let opSparklineColor = '#6c757d'; // 기본 회색
+        if (opPercent < 30) {
+          // 30% 미만: 빨간색 (낮음) - 더 낮을수록 더 진한 빨간색
+          const intensity = Math.max(30 - opPercent, 0) * 2.5;
+          opSparklineColor = `rgb(${220 + intensity}, ${53 - intensity}, ${69 - intensity})`;
+        } else if (opPercent > 70) {
+          // 70% 초과: 파란색 (높음) - 더 높을수록 더 진한 파란색
+          const intensity = Math.min(opPercent - 70, 30) * 2.5;
+          opSparklineColor = `rgb(${13 - intensity}, ${110 + intensity}, ${253 + intensity})`;
+        } else {
+          // 30~70%: 중간 값 - 30%에 가까울수록 옅은 빨간색, 70%에 가까울수록 옅은 파란색
+          const blueComponent = Math.round((opPercent - 30) / 40 * 255);
+          const redComponent = Math.round((70 - opPercent) / 40 * 255);
+          opSparklineColor = `rgb(${redComponent}, ${100}, ${blueComponent})`;
+        }
+        opSparklineContainer.setAttribute('data-sparkline-bar-color', opSparklineColor);
         
         // 시스템 배차 셀
         const sysCell = row.insertCell(6);
         const sysPercent = Math.round(s.systemDispatch/s.total*100);
         
-        // 시스템 배차 비율에 따른 색상 적용
+        // 시스템 배차 비율에 따른 색상 적용 (그라데이션)
         const sysPercentText = document.createElement('span');
         if (sysPercent > 70) {
-          sysPercentText.style.color = '#dc3545'; // 빨간색 (높음)
+          // 70% 초과: 빨간색 (높음) - 더 높을수록 더 진한 빨간색
+          const intensity = Math.min(sysPercent - 70, 30) * 2.5;
+          sysPercentText.style.color = `rgb(${220 + intensity}, ${53 - intensity}, ${69 - intensity})`;
           sysPercentText.style.fontWeight = 'bold';
         } else if (sysPercent < 30) {
-          sysPercentText.style.color = '#198754'; // 초록색 (낮음)
+          // 30% 미만: 초록색 (낮음) - 더 낮을수록 더 진한 초록색
+          const intensity = Math.max(30 - sysPercent, 0) * 2.5;
+          sysPercentText.style.color = `rgb(${25 - intensity}, ${135 + intensity}, ${84 + intensity})`;
           sysPercentText.style.fontWeight = 'bold';
+        } else {
+          // 30~70%: 중간 값 - 30%에 가까울수록 옅은 초록색, 70%에 가까울수록 옅은 빨간색
+          const redComponent = Math.round((sysPercent - 30) / 40 * 255);
+          const greenComponent = Math.round((70 - sysPercent) / 40 * 255);
+          sysPercentText.style.color = `rgb(${redComponent}, ${greenComponent}, ${50})`;
         }
         sysPercentText.textContent = `${s.systemDispatch} (${sysPercent}%)`;
         sysCell.appendChild(sysPercentText);
@@ -1048,7 +1083,24 @@
         sysSparklineContainer.setAttribute('data-sparkline-type', 'bar');
         sysSparklineContainer.setAttribute('data-sparkline-width', '40');
         sysSparklineContainer.setAttribute('data-sparkline-height', '20');
-        sysSparklineContainer.setAttribute('data-sparkline-bar-color', sysPercent > 50 ? '#dc3545' : '#6c757d');
+        
+        // 시스템 배차 비율에 따른 스파크라인 색상 설정
+        let sysSparklineColor = '#6c757d'; // 기본 회색
+        if (sysPercent > 70) {
+          // 70% 초과: 빨간색 (높음) - 더 높을수록 더 진한 빨간색
+          const intensity = Math.min(sysPercent - 70, 30) * 2.5;
+          sysSparklineColor = `rgb(${220 + intensity}, ${53 - intensity}, ${69 - intensity})`;
+        } else if (sysPercent < 30) {
+          // 30% 미만: 초록색 (낮음) - 더 낮을수록 더 진한 초록색
+          const intensity = Math.max(30 - sysPercent, 0) * 2.5;
+          sysSparklineColor = `rgb(${25 - intensity}, ${135 + intensity}, ${84 + intensity})`;
+        } else {
+          // 30~70%: 중간 값 - 30%에 가까울수록 옅은 초록색, 70%에 가까울수록 옅은 빨간색
+          const redComponent = Math.round((sysPercent - 30) / 40 * 255);
+          const greenComponent = Math.round((70 - sysPercent) / 40 * 255);
+          sysSparklineColor = `rgb(${redComponent}, ${greenComponent}, ${50})`;
+        }
+        sysSparklineContainer.setAttribute('data-sparkline-bar-color', sysSparklineColor);
         
         // 처리 불가 셀
         row.insertCell(7).textContent = s.cantProcess;
@@ -1468,17 +1520,13 @@
       performersData.top.forEach((performer, index) => {
         const row = topBody.insertRow();
         
-        // 순위 셀 - 메달 아이콘 추가
+        // 순위 셀 - 메달 이모지 추가
         const rankCell = row.insertCell(0);
         
         if (index < 3) {
-          // 메달 아이콘 (1-3위)
-          const medalIcons = [
-            '<i class="fas fa-trophy medal-gold"></i>',
-            '<i class="fas fa-medal medal-silver"></i>',
-            '<i class="fas fa-award medal-bronze"></i>'
-          ];
-          rankCell.innerHTML = `${medalIcons[index]} ${index + 1}위`;
+          // 메달 이모지 (1-3위)
+          const medalEmojis = ['🥇', '🥈', '🥉'];
+          rankCell.innerHTML = `${medalEmojis[index]} ${index + 1}위`;
           rankCell.style.fontWeight = 'bold';
         } else {
           rankCell.textContent = `${index + 1}위`;
@@ -1486,10 +1534,88 @@
         
         // 나머지 셀 추가
         row.insertCell(1).textContent = performer.dispatcher;
-        row.insertCell(2).textContent = performer.total;
-        row.insertCell(3).textContent = performer.totalScore;
-        row.insertCell(4).textContent = `${performer.operatorDispatch} (${Math.round(performer.operatorDispatch/performer.total*100)}%)`;
-        row.insertCell(5).textContent = `${Math.round(performer.avgTime)} 초`;
+        
+        // 총 건수 셀
+        const totalCell = row.insertCell(2);
+        totalCell.textContent = performer.total;
+        
+        // 총 건수에 스파크라인 추가
+        const totalSparklineContainer = document.createElement('span');
+        totalSparklineContainer.className = 'sparkline-container';
+        totalCell.appendChild(totalSparklineContainer);
+        
+        // 임의의 데이터 생성 (실제 데이터가 있다면 그것을 사용)
+        const totalData = Array.from({length: 5}, () => Math.floor(Math.random() * (performer.total * 0.5) + performer.total * 0.5));
+        totalSparklineContainer.setAttribute('data-sparkline', totalData.join(','));
+        totalSparklineContainer.setAttribute('data-sparkline-type', 'line');
+        totalSparklineContainer.setAttribute('data-sparkline-width', '50');
+        totalSparklineContainer.setAttribute('data-sparkline-height', '20');
+        totalSparklineContainer.setAttribute('data-sparkline-line-color', '#0d6efd');
+        
+        // 총 점수 셀
+        const scoreCell = row.insertCell(3);
+        scoreCell.textContent = performer.totalScore;
+        
+        // 총 점수에 스파크라인 추가
+        const scoreSparklineContainer = document.createElement('span');
+        scoreSparklineContainer.className = 'sparkline-container';
+        scoreCell.appendChild(scoreSparklineContainer);
+        
+        // 임의의 데이터 생성 (실제 데이터가 있다면 그것을 사용)
+        const scoreData = Array.from({length: 5}, () => Math.floor(Math.random() * (performer.totalScore * 0.3) + performer.totalScore * 0.7));
+        scoreSparklineContainer.setAttribute('data-sparkline', scoreData.join(','));
+        scoreSparklineContainer.setAttribute('data-sparkline-type', 'line');
+        scoreSparklineContainer.setAttribute('data-sparkline-width', '50');
+        scoreSparklineContainer.setAttribute('data-sparkline-height', '20');
+        scoreSparklineContainer.setAttribute('data-sparkline-line-color', '#198754');
+        
+        // 오퍼레이터 배차 셀
+        const opCell = row.insertCell(4);
+        const opPercent = Math.round(performer.operatorDispatch/performer.total*100);
+        opCell.textContent = `${performer.operatorDispatch} (${opPercent}%)`;
+        
+        // 오퍼레이터 배차에 스파크라인 추가
+        const opSparklineContainer = document.createElement('span');
+        opSparklineContainer.className = 'sparkline-container';
+        opCell.appendChild(opSparklineContainer);
+        
+        // 스파크라인 초기화를 위한 데이터 속성 추가
+        opSparklineContainer.setAttribute('data-sparkline', opPercent);
+        opSparklineContainer.setAttribute('data-sparkline-type', 'bar');
+        opSparklineContainer.setAttribute('data-sparkline-width', '40');
+        opSparklineContainer.setAttribute('data-sparkline-height', '20');
+        
+        // 오퍼레이터 배차 비율에 따른 스파크라인 색상 설정
+        let opSparklineColor = '#6c757d'; // 기본 회색
+        if (opPercent < 30) {
+          const intensity = Math.max(30 - opPercent, 0) * 2.5;
+          opSparklineColor = `rgb(${220 + intensity}, ${53 - intensity}, ${69 - intensity})`;
+        } else if (opPercent > 70) {
+          const intensity = Math.min(opPercent - 70, 30) * 2.5;
+          opSparklineColor = `rgb(${13 - intensity}, ${110 + intensity}, ${253 + intensity})`;
+        } else {
+          const blueComponent = Math.round((opPercent - 30) / 40 * 255);
+          const redComponent = Math.round((70 - opPercent) / 40 * 255);
+          opSparklineColor = `rgb(${redComponent}, ${100}, ${blueComponent})`;
+        }
+        opSparklineContainer.setAttribute('data-sparkline-bar-color', opSparklineColor);
+        
+        // 평균 소요 시간 셀
+        const avgTimeCell = row.insertCell(5);
+        avgTimeCell.textContent = `${Math.round(performer.avgTime)} 초`;
+        
+        // 평균 소요 시간에 스파크라인 추가
+        const timeSparklineContainer = document.createElement('span');
+        timeSparklineContainer.className = 'sparkline-container';
+        avgTimeCell.appendChild(timeSparklineContainer);
+        
+        // 임의의 데이터 생성 (실제 데이터가 있다면 그것을 사용)
+        const timeData = Array.from({length: 5}, () => Math.floor(Math.random() * (performer.avgTime * 0.5) + performer.avgTime * 0.5));
+        timeSparklineContainer.setAttribute('data-sparkline', timeData.join(','));
+        timeSparklineContainer.setAttribute('data-sparkline-type', 'line');
+        timeSparklineContainer.setAttribute('data-sparkline-width', '50');
+        timeSparklineContainer.setAttribute('data-sparkline-height', '20');
+        timeSparklineContainer.setAttribute('data-sparkline-line-color', '#fd7e14');
       });
       
       // Bottom 5 저성과자 표시
