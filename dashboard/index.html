@@ -480,11 +480,11 @@
                   <div class="input-group">
                     <input type="text" id="dispatcher-filter" class="form-control" placeholder="담당자 검색...">
                     <div class="input-group-append">
-                      <button id="clear-filter" class="btn btn-outline-secondary" type="button" title="필터 초기화">
-                        ✖️
+                      <button id="clear-filter" class="btn btn-outline-secondary" type="button">
+                        <i class="fas fa-times"></i>
                       </button>
                       <button id="capture-table" class="btn btn-outline-primary" type="button" title="테이블 캡처">
-                        📷
+                        <i class="fas fa-camera"></i>
                       </button>
                     </div>
                   </div>
@@ -1319,12 +1319,13 @@
       });
     }
     
+      
     // 테이블 캡처 기능 설정
     function setupCaptureButton() {
       const captureButton = document.getElementById('capture-table');
       const statsTable = document.getElementById('dispatcher-stats-table');
       
-      captureButton.addEventListener('click', function() {
+      captureButton.addEventListener('click', async () => {
         try {
           // 로딩 표시
           const loadingDiv = document.createElement('div');
@@ -1333,57 +1334,48 @@
           loadingDiv.innerHTML = '<div class="spinner-border text-light" role="status"><span class="visually-hidden">캡처 중...</span></div>';
           document.body.appendChild(loadingDiv);
           
-          // 테이블 캡처 전 준비 - 테이블 스타일 임시 조정
-          const originalTableStyle = statsTable.style.cssText;
-          statsTable.style.width = 'auto';
-          statsTable.style.maxWidth = '100%';
-          statsTable.style.backgroundColor = '#ffffff';
-          statsTable.style.border = '1px solid #dee2e6';
-          
-          // 테이블 캡처 - async/await 대신 프로미스 체인 사용
-          html2canvas(statsTable, {
+          // 테이블 캡처
+          const canvas = await html2canvas(statsTable, {
             backgroundColor: '#ffffff',
             scale: 2, // 고해상도로 캡처
-            logging: true, // 디버깅을 위해 로깅 활성화
-            useCORS: true,
-            allowTaint: true,
-            foreignObjectRendering: false // 호환성 문제 해결
-          }).then(function(canvas) {
-            // 원래 테이블 스타일 복원
-            statsTable.style.cssText = originalTableStyle;
+            logging: false,
+            useCORS: true
+          });
+          
+          // 캔버스를 이미지로 변환
+          const imageData = canvas.toDataURL('image/png');
+          
+          // 클립보드에 복사하기 위한 임시 요소 생성
+          const tempImg = document.createElement('img');
+          tempImg.src = imageData;
+          
+          // 클립보드에 복사
+          try {
+            // 새로운 ClipboardItem API 사용 (최신 브라우저)
+            const blob = await (await fetch(imageData)).blob();
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                [blob.type]: blob
+              })
+            ]);
+            alert('테이블이 클립보드에 복사되었습니다.');
+          } catch (clipboardError) {
+            // 대체 방법: 이미지 다운로드
+            console.error('클립보드 복사 실패:', clipboardError);
             
-            // 캔버스를 이미지로 변환
-            const imageData = canvas.toDataURL('image/png');
-            
-            // 다운로드 링크 생성 (클립보드 복사 대신 다운로드 방식으로 변경)
+            // 다운로드 링크 생성
             const downloadLink = document.createElement('a');
             downloadLink.href = imageData;
             downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
-            downloadLink.style.display = 'none';
-            document.body.appendChild(downloadLink);
             downloadLink.click();
-            document.body.removeChild(downloadLink);
-            
-            // 완료 메시지
-            alert('테이블 이미지가 다운로드되었습니다.');
-            
-            // 로딩 표시 제거
-            document.body.removeChild(loadingDiv);
-          }).catch(function(error) {
-            console.error('테이블 캡처 중 오류 발생:', error);
-            alert('테이블 캡처 중 오류가 발생했습니다: ' + error.message);
-            
-            // 원래 테이블 스타일 복원
-            statsTable.style.cssText = originalTableStyle;
-            
-            // 로딩 표시가 남아있을 경우 제거
-            if (document.body.contains(loadingDiv)) {
-              document.body.removeChild(loadingDiv);
-            }
-          });
+            alert('클립보드 복사에 실패했습니다. 이미지가 다운로드됩니다.');
+          }
+          
+          // 로딩 표시 제거
+          document.body.removeChild(loadingDiv);
         } catch (error) {
-          console.error('테이블 캡처 초기화 중 오류 발생:', error);
-          alert('테이블 캡처 초기화 중 오류가 발생했습니다: ' + error.message);
+          console.error('테이블 캡처 중 오류 발생:', error);
+          alert('테이블 캡처 중 오류가 발생했습니다.');
         }
       });
     }
