@@ -152,6 +152,53 @@
           height: 250px;
         }
       }
+      
+      /* 담당자별 상세 통계 테이블 스타일 */
+      #dispatcher-stats-table {
+        border-collapse: collapse;
+        width: 100%;
+        table-layout: auto; /* 내용물에 맞게 자동 조정 */
+      }
+      
+      #dispatcher-stats-table th,
+      #dispatcher-stats-table td {
+        border: 1px solid #dee2e6; /* 모든 셀에 테두리 추가 */
+        padding: 8px;
+        white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+      }
+      
+      /* 시프트 스타일 */
+      .shift-op {
+        background-color: #0d6efd; /* 파랑색 배경 */
+        color: white; /* 흰색 글자 */
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+      
+      .shift-mid {
+        background-color: #198754; /* 초록색 배경 */
+        color: white; /* 흰색 글자 */
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+      
+      .shift-cl {
+        background-color: #8B0000; /* 검붉은 배경 */
+        color: white; /* 흰색 글자 */
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+      
+      .shift-nt {
+        background-color: #343a40; /* 짙은 회색 배경 */
+        color: white; /* 흰색 글자 */
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+      
+      .shift-4 {
+        color: yellow; /* 노란색 글자 */
+      }
     </style>
   </head>
   <body>
@@ -335,17 +382,23 @@
               </div>
               <div class="card-body">
                 <div class="table-responsive">
-                  <table id="dispatcher-stats-table" class="table table-striped table-hover">
-                    <thead>
+                  <table id="dispatcher-stats-table" class="table table-striped table-hover text-center">
+                    <thead class="text-center">
                       <tr>
                         <th class="sortable" data-sort="dispatcher">
                           담당자 <i class="fas fa-sort"></i>
                         </th>
-                        <th class="sortable" data-sort="workShift" style="width: 80px;">
+                        <th class="sortable" data-sort="workShift">
                           시프트 <i class="fas fa-sort"></i>
                         </th>
-                        <th class="sortable" data-sort="workHours" style="width: 80px;">
+                        <th class="sortable" data-sort="workHours">
                           WH <i class="fas fa-sort"></i>
+                        </th>
+                        <th class="sortable" data-sort="cantProcess">
+                          처리 불가 <i class="fas fa-sort"></i>
+                        </th>
+                        <th class="sortable" data-sort="avgTime">
+                          평균 소요시간 <i class="fas fa-sort"></i>
                         </th>
                         <th class="sortable" data-sort="total">
                           총 건수 <i class="fas fa-sort"></i>
@@ -362,21 +415,15 @@
                         <!-- <th class="sortable" data-sort="normal">
                           정상 이동 중 <i class="fas fa-sort"></i>
                         </th> -->
-                        <th class="sortable" data-sort="cantProcess">
-                          처리 불가 <i class="fas fa-sort"></i>
-                        </th>
                         <!-- <th class="sortable" data-sort="other">
                           기타 <i class="fas fa-sort"></i>
                         </th> -->
-                        <th class="sortable" data-sort="avgTime">
-                          평균 소요시간 <i class="fas fa-sort"></i>
-                        </th>
                         <th class="sortable" data-sort="goalAchievement">
                           목표 달성 <i class="fas fa-sort"></i>
                         </th>
                       </tr>
                     </thead>
-                    <tbody id="dispatcher-stats-body">
+                    <tbody id="dispatcher-stats-body" class="text-center">
                       <!-- 여기에 자바스크립트로 행이 추가됩니다 -->
                     </tbody>
                   </table>
@@ -665,73 +712,30 @@
       setupFilterListeners();
     }
     
-    // 담당자 테이블 렌더링
-    function renderDispatcherTable() {
-      const tableBody = document.getElementById('dispatcher-stats-body');
-      tableBody.innerHTML = '';
-      
-      // 정렬 및 필터링된 데이터 얻기
-      const sortedData = getSortedAndFilteredData();
-      
-      sortedData.forEach(item => {
-        const dispatcher = item.dispatcher;
-        const s = dispatcherStatsData[dispatcher];
-        
-        const row = tableBody.insertRow();
-        
-        // 셀에 데이터 속성 추가
-        row.setAttribute('data-dispatcher', dispatcher);
-        row.setAttribute('data-total', s.total);
-        row.setAttribute('data-score', s.totalScore);
-        row.setAttribute('data-system', s.systemDispatch);
-        row.setAttribute('data-operator', s.operatorDispatch);
-        row.setAttribute('data-normal', s.normalMoving);
-        row.setAttribute('data-cantprocess', s.cantProcess);
-        row.setAttribute('data-other', s.other);
-        row.setAttribute('data-avgtime', Math.round(s.avgTime));
-        row.setAttribute('data-workShift', s.workShift);
-        row.setAttribute('data-workHours', s.workHours);
-        row.setAttribute('data-goalAchievement', s.goalAchievement);
-        
-        // 셀 추가
-        row.insertCell(0).textContent = dispatcher;
-        row.insertCell(1).textContent = s.workShift;
-        row.insertCell(2).textContent = s.workHours;
-        row.insertCell(3).textContent = s.total;
-        row.insertCell(4).textContent = s.totalScore;
-        row.insertCell(5).textContent = `${s.systemDispatch} (${Math.round(s.systemDispatch/s.total*100)}%)`;
-        row.insertCell(6).textContent = `${s.operatorDispatch} (${Math.round(s.operatorDispatch/s.total*100)}%)`;
-        // row.insertCell(7).textContent = `${s.normalMoving} (${Math.round(s.normalMoving/s.total*100)}%)`;
-        row.insertCell(7).textContent = `${s.cantProcess} (${Math.round(s.cantProcess/s.total*100)}%)`;
-        // row.insertCell(9).textContent = `${s.other} (${Math.round(s.other/s.total*100)}%)`;
-        row.insertCell(8).textContent = `${Math.round(s.avgTime)} 초`;
-        row.insertCell(9).textContent = s.goalAchievement;
-      });
-    }
-    
-    // 정렬 및 필터링된 데이터 얻기
-    function getSortedAndFilteredData() {
-      // 데이터 객체를 배열로 변환
-      const dataArray = Object.keys(dispatcherStatsData).map(dispatcher => {
-        return {
-          dispatcher: dispatcher,
-          data: dispatcherStatsData[dispatcher]
-        };
-      });
-      
+    // 데이터 필터링 및 정렬
+    function filterAndSortData() {
       // 필터링
-      const filteredData = dataArray.filter(item => {
-        if (!filterText) return true;
-        return item.dispatcher.toLowerCase().includes(filterText.toLowerCase());
-      });
+      let filteredData = [];
       
-      // 정렬
-      if (currentSort.direction === 'none') {
-        return filteredData.sort((a, b) => b.data.total - a.data.total);
+      for (const dispatcher in dispatcherStatsData) {
+        if (filterText && !dispatcher.toLowerCase().includes(filterText.toLowerCase())) {
+          continue;
+        }
+        
+        filteredData.push({
+          dispatcher,
+          data: dispatcherStatsData[dispatcher]
+        });
       }
       
+      // 정렬
       filteredData.sort((a, b) => {
         let direction = currentSort.direction === 'asc' ? 1 : -1;
+        
+        // 정렬이 없는 경우 기본 순서 반환
+        if (currentSort.direction === 'none') {
+          return 0;
+        }
         
         switch(currentSort.column) {
           case 'dispatcher':
@@ -764,6 +768,63 @@
       });
       
       return filteredData;
+    }
+    
+    // 담당자 통계 테이블 렌더링
+    function renderDispatcherTable() {
+      const tableBody = document.getElementById('dispatcher-stats-body');
+      tableBody.innerHTML = '';
+      
+      // 데이터 필터링 및 정렬
+      const filteredData = filterAndSortData();
+      
+      // 행 추가
+      filteredData.forEach(({dispatcher, data: s}) => {
+        const row = tableBody.insertRow();
+        
+        // 담당자 셀
+        const dispatcherCell = row.insertCell(0);
+        dispatcherCell.textContent = dispatcher;
+        
+        // 시프트 셀
+        const shiftCell = row.insertCell(1);
+        
+        // 시프트에 따른 스타일 적용
+        if (s.workShift) {
+          let shiftText = s.workShift.toString();
+          let shiftSpan = document.createElement('span');
+          
+          // 시프트 배경색 및 글자색 설정
+          if (shiftText.includes('OP')) {
+            shiftSpan.className = 'shift-op';
+          } else if (shiftText.includes('MID')) {
+            shiftSpan.className = 'shift-mid';
+          } else if (shiftText.includes('CL')) {
+            shiftSpan.className = 'shift-cl';
+          } else if (shiftText.includes('NT')) {
+            shiftSpan.className = 'shift-nt';
+          }
+          
+          // -4가 포함된 경우 -4 부분만 노란색으로 변경
+          if (shiftText.includes('-4')) {
+            const parts = shiftText.split('-4');
+            shiftSpan.innerHTML = parts[0] + '<span class="shift-4">-4</span>' + (parts[1] || '');
+          } else {
+            shiftSpan.textContent = shiftText;
+          }
+          
+          shiftCell.appendChild(shiftSpan);
+        }
+        
+        row.insertCell(2).textContent = s.workHours;
+        row.insertCell(3).textContent = s.cantProcess;
+        row.insertCell(4).textContent = `${Math.round(s.avgTime)} 초`;
+        row.insertCell(5).textContent = s.total;
+        row.insertCell(6).textContent = s.totalScore;
+        row.insertCell(7).textContent = `${s.systemDispatch} (${Math.round(s.systemDispatch/s.total*100)}%)`;
+        row.insertCell(8).textContent = `${s.operatorDispatch} (${Math.round(s.operatorDispatch/s.total*100)}%)`;
+        row.insertCell(9).textContent = s.goalAchievement;
+      });
     }
     
     // 정렬 이벤트 리스너 설정
