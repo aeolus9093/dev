@@ -384,13 +384,20 @@
             </div>
           </div>
           
-          <!-- 지역별 배차 건수 차트 -->
-          <div class="col-md-6 mb-4">
-            <div class="card h-100">
-              <div class="card-header">지역별 배차 건수</div>
-              <div class="card-body">
-                <div id="region-chart" class="chart-container"></div>
+          <!-- 지역별 차트 및 배차 결과 통계 -->
+          <div class="row">
+            <div class="col-md-6 mb-4">
+              <div class="card h-100">
+                <div class="card-header">
+                  <h5 class="mb-0">지역별 배차 건수</h5>
+                </div>
+                <div class="card-body">
+                  <div id="region-chart" class="chart-container"></div>
+                </div>
               </div>
+            </div>
+            <div class="col-md-6 mb-4">
+              <div id="dispatch-result-stats"></div>
             </div>
           </div>
         </div>
@@ -514,13 +521,6 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-        
-        <!-- 배차 결과 통계 테이블 -->
-        <div class="row">
-          <div class="col-12 mb-4">
-            <div id="dispatch-result-stats"></div>
           </div>
         </div>
       </div>
@@ -745,7 +745,7 @@
         setupCaptureButton();
         
         // 차트 크기 조정
-        setTimeout(fixChartDisplay, 100);
+        setTimeout(fixChartDisplay, 500);
         
         console.log('데이터 처리 완료');
       } catch (error) {
@@ -813,12 +813,12 @@
           try {
             chart.draw(dataTable, options);
           } catch(e) {
-            console.error("Error drawing dispatcher chart:", e);
+            console.error("담당자 차트 그리기 오류:", e);
           }
         };
       
       } catch (e) {
-        console.error("Error creating dispatcher chart:", e);
+        console.error("담당자 차트 생성 오류:", e);
         chartContainer.innerHTML = '<div class="alert alert-warning">차트 로드 중 오류가 발생했습니다.</div>';
       }
       
@@ -829,7 +829,7 @@
       setupSortListeners();
       
       // 필터 이벤트 리스너 설정
-      setupFilterListeners();
+      setupFilterListener();
     }
     
     // 데이터 필터링 및 정렬
@@ -1284,19 +1284,29 @@
     }, 5 * 60 * 1000);
   }
 
-  // 차트 크기 조정
+  // 차트 크기 조정 함수
   function fixChartDisplay() {
     // 차트가 있는 경우 크기 조정 및 다시 그리기
     if (typeof window.drawHourlyChart === 'function') {
-      setTimeout(window.drawHourlyChart, 100);
+      try {
+        window.drawHourlyChart();
+      } catch (e) {
+        console.error('시간대별 차트 다시 그리기 오류:', e);
+      }
     }
     
     // 지역별 차트 다시 그리기
     if (typeof window.drawRegionChart === 'function') {
-      setTimeout(window.drawRegionChart, 100);
+      try {
+        window.drawRegionChart();
+      } catch (e) {
+        console.error('지역별 차트 다시 그리기 오류:', e);
+      }
     }
+    
+    console.log('차트 크기 조정 완료');
   }
-
+  
   // 지역별 차트 표시
   function displayRegionChart(regionData) {
     if (!regionData || regionData.length === 0) return;
@@ -1320,14 +1330,17 @@
         title: '지역별 배차 건수',
         pieHole: 0.4,
         chartArea: {
-          left: 10,
+          left: 20,
           top: 30,
-          width: '100%',
-          height: '75%'
+          width: '80%',
+          height: '80%'
         },
         legend: {position: 'right'},
         width: '100%',
-        height: 300
+        height: 300,
+        fontSize: 12,
+        fontName: 'Noto Sans KR',
+        colors: ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#8064A2', '#4E9A06']
       };
       
       // 차트 그리기
@@ -1339,8 +1352,17 @@
       
       // 차트 다시 그리는 함수 정의
       window.drawRegionChart = function() {
-        chart.draw(dataTable, options);
+        if (chart && dataTable) {
+          try {
+            chart.draw(dataTable, options);
+          } catch (e) {
+            console.error('지역별 차트 다시 그리기 오류:', e);
+          }
+        }
       };
+      
+      // 차트 크기 조정
+      fixChartDisplay();
     } catch (error) {
       console.error('지역별 차트 표시 중 오류:', error);
     }
@@ -1579,7 +1601,7 @@
       try {
         // 테이블 생성
         let html = `
-          <div class="card mb-4">
+          <div class="card h-100">
             <div class="card-header">
               <h5 class="mb-0">배차 결과 분포</h5>
             </div>
