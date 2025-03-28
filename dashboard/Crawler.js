@@ -161,6 +161,14 @@ const DISPATCHER_RANGES = [
         const newSheet = resultSheet.copyTo(currentSpreadsheet).setName('실적');
         Logger.log("새로운 '실적' 시트가 생성되었습니다.");
         
+        // A~T 컬럼의 Bold 처리 해제
+        newSheet.getRange("A1:T1").setFontWeight("normal");
+        Logger.log("A~T 컬럼의 Bold 처리가 해제되었습니다.");
+        
+        // Q~S 컬럼의 서식을 HH:MM:SS 형태로 변경
+        newSheet.getRange("Q:S").setNumberFormat("HH:MM:SS");
+        Logger.log("Q~S 컬럼의 서식이 HH:MM:SS 형태로 변경되었습니다.");
+        
         // T 컬럼 숨기기 (T는 알파벳 순서로 20번째 열)
         try {
           newSheet.hideColumns(20, 1); // 20번째 열부터 1개 열 숨기기
