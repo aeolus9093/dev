@@ -1343,6 +1343,12 @@
   function displayRegionChart(regionData) {
     if (!regionData || regionData.length === 0) {
       console.warn('지역별 차트 데이터가 없습니다.');
+      
+      // 차트 컨테이너
+      const chartContainer = document.getElementById('region-chart');
+      if (chartContainer) {
+        chartContainer.innerHTML = '<div class="alert alert-warning">데이터가 없습니다.</div>';
+      }
       return;
     }
     
@@ -1640,56 +1646,109 @@
     
     // 배차 결과 통계 표시 함수
     function displayDispatchResultStats(resultStats) {
-      if (!resultStats || resultStats.length === 0) return;
-      
-      const resultStatsContainer = document.getElementById('dispatch-result-stats');
-      if (!resultStatsContainer) return;
+      if (!resultStats || resultStats.length === 0) {
+        console.warn('배차 결과 통계 데이터가 없습니다.');
+        
+        // 결과 통계 컨테이너
+        const statsContainer = document.getElementById('dispatch-result-stats');
+        if (statsContainer) {
+          statsContainer.innerHTML = `
+            <div class="card h-100">
+              <div class="card-header">
+                <h5 class="mb-0">배차 결과 분포</h5>
+              </div>
+              <div class="card-body">
+                <div class="alert alert-warning">데이터가 없습니다.</div>
+              </div>
+            </div>
+          `;
+        }
+        return;
+      }
       
       try {
+        console.log('배차 결과 통계 표시 시작:', resultStats);
+        
+        // 결과 통계 컨테이너
+        const statsContainer = document.getElementById('dispatch-result-stats');
+        if (!statsContainer) {
+          console.warn('배차 결과 통계 컨테이너를 찾을 수 없습니다.');
+          return;
+        }
+        
+        // 총 건수 계산
+        const totalCount = resultStats.reduce((sum, item) => sum + item.count, 0);
+        
         // 테이블 생성
-        let html = `
+        let tableHtml = `
           <div class="card h-100">
             <div class="card-header">
               <h5 class="mb-0">배차 결과 분포</h5>
             </div>
             <div class="card-body">
-              <table class="table table-sm table-bordered">
-                <thead>
-                  <tr>
-                    <th>결과 유형</th>
-                    <th>건수</th>
-                    <th>비율</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                  <thead class="table-light">
+                    <tr>
+                      <th>배차 결과</th>
+                      <th>건수</th>
+                      <th>비율</th>
+                      <th>그래프</th>
+                    </tr>
+                  </thead>
+                  <tbody>
         `;
-        
-        // 총 건수 계산
-        const totalCount = resultStats.reduce((sum, item) => sum + item.count, 0);
         
         // 각 결과 유형별 행 추가
         resultStats.forEach(item => {
-          const percentage = ((item.count / totalCount) * 100).toFixed(1);
-          html += `
+          const percentage = item.percentage ? item.percentage : ((item.count / totalCount) * 100).toFixed(1);
+          
+          tableHtml += `
             <tr>
               <td>${item.result}</td>
-              <td>${item.count}</td>
+              <td>${item.count.toLocaleString()}</td>
               <td>${percentage}%</td>
+              <td>
+                <div class="progress">
+                  <div class="progress-bar" role="progressbar" style="width: ${percentage}%;" 
+                       aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100">
+                    ${percentage}%
+                  </div>
+                </div>
+              </td>
             </tr>
           `;
         });
         
-        html += `
-              </tbody>
-            </table>
+        // 테이블 닫기
+        tableHtml += `
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        </div>
-      `;
+        `;
         
-        // HTML 삽입
-        resultStatsContainer.innerHTML = html;
+        // 컨테이너에 테이블 추가
+        statsContainer.innerHTML = tableHtml;
+        console.log('배차 결과 통계 표시 완료');
       } catch (error) {
         console.error('배차 결과 통계 표시 중 오류:', error);
+        
+        // 오류 메시지 표시
+        const statsContainer = document.getElementById('dispatch-result-stats');
+        if (statsContainer) {
+          statsContainer.innerHTML = `
+            <div class="card h-100">
+              <div class="card-header">
+                <h5 class="mb-0">배차 결과 분포</h5>
+              </div>
+              <div class="card-body">
+                <div class="alert alert-danger">데이터 표시 중 오류가 발생했습니다.</div>
+              </div>
+            </div>
+          `;
+        }
       }
     }
     
