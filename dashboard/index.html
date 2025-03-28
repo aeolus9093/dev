@@ -1143,6 +1143,9 @@
     function initSparklines() {
       // 라인 스파크라인 그리기
       document.querySelectorAll('[data-sparkline-type="line"]').forEach(container => {
+        // 기존 캔버스 제거
+        container.querySelectorAll('canvas').forEach(canvas => canvas.remove());
+        
         const values = container.getAttribute('data-sparkline').split(',').map(Number);
         const width = parseInt(container.getAttribute('data-sparkline-width') || '50');
         const height = parseInt(container.getAttribute('data-sparkline-height') || '20');
@@ -1161,6 +1164,9 @@
       
       // 바 스파크라인 그리기
       document.querySelectorAll('[data-sparkline-type="bar"]').forEach(container => {
+        // 기존 바 스파크라인 제거
+        container.querySelectorAll('.bar-sparkline').forEach(bar => bar.remove());
+        
         const value = parseInt(container.getAttribute('data-sparkline'));
         const barColor = container.getAttribute('data-sparkline-bar-color') || '#0d6efd';
         
