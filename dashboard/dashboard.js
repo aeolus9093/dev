@@ -590,73 +590,118 @@ function doGet() {
     return sortedResultStats;
   }
 
-  // 데이터 로드 함수
-  function loadData(showSpinner = true) {
-    // 이전 타이머가 있으면 취소
-    if (refreshTimer) {
-      clearTimeout(refreshTimer);
-    }
-    
-    // 로딩 중 상태 설정
+  // 서버에서 데이터 로드
+  async function loadData(showSpinner = true, forceWorkPerformanceRefresh = false) {
+    if (isLoading) return; // 이미 로드 중이면 중복 요청 방지
     isLoading = true;
     
     // 로딩 표시
     if (showSpinner) {
-      document.getElementById('loading').style.opacity = '1';
-      document.getElementById('dashboard-content').style.opacity = '0.5';
+      showLoading();
     }
     
     try {
-      // 서버에서 데이터 가져오기
-      const dispatchData = getDispatchData();
+      // 요약 데이터 가져오기
+      const getSummaryData = new Promise((resolveSum) => {
+        google.script.run
+          .withSuccessHandler((data) => {
+            console.log('요약 데이터 로드 성공');
+            resolveSum(data);
+          })
+          .withFailureHandler((error) => {
+            console.error('요약 데이터 로드 오류:', error);
+            resolveSum(null);
+          })
+          .getDispatchSummary();
+      });
       
-      if (!dispatchData || !dispatchData.data || dispatchData.data.length === 0) {
-        handleError('데이터를 가져올 수 없습니다.');
-        return;
-      }
+      // 담당자별 통계 가져오기
+      const getDispatcherData = new Promise((resolveDisp) => {
+        google.script.run
+          .withSuccessHandler((data) => {
+            console.log('담당자별 통계 로드 성공');
+            resolveDisp(data);
+          })
+          .withFailureHandler((error) => {
+            console.error('담당자별 통계 로드 오류:', error);
+            resolveDisp(null);
+          })
+          .getDispatcherStats();
+      });
       
-      // 전체 요약 통계 계산
-      const summary = getSummaryStats();
+      // 시간대별 통계 가져오기
+      const getHourlyData = new Promise((resolveHourly) => {
+        google.script.run
+          .withSuccessHandler((data) => {
+            console.log('시간대별 통계 로드 성공');
+            resolveHourly(data);
+          })
+          .withFailureHandler((error) => {
+            console.error('시간대별 통계 로드 오류:', error);
+            resolveHourly(null);
+          })
+          .getHourlyStats();
+      });
       
-      // 담당자별 통계 계산
-      const dispatcherStats = getDispatcherStats();
+      // 고성과자/저성과자 데이터 가져오기
+      const getPerformersData = new Promise((resolvePerf) => {
+        google.script.run
+          .withSuccessHandler((data) => {
+            console.log('성과자 데이터 로드 성공');
+            resolvePerf(data);
+          })
+          .withFailureHandler((error) => {
+            console.error('성과자 데이터 로드 오류:', error);
+            resolvePerf(null);
+          })
+          .getTopPerformers();
+      });
       
-      // 고성과자/저성과자 통계 계산
-      const performersData = getTopPerformers();
+      // 근무자 실적 데이터 로드
+      const loadWorkPerformanceData = new Promise((resolve) => {
+        google.script.run
+          .withSuccessHandler((data) => {
+            workPerformanceData = data || {};  // null이면 빈 객체로 초기화
+            console.log('근무자 실적 데이터 로드 완료');
+            resolve();
+          })
+          .withFailureHandler((error) => {
+            console.error('근무자 실적 데이터 로드 오류:', error);
+            workPerformanceData = {};  // 오류 발생 시 빈 객체로 초기화
+            resolve();
+          })
+          .getWorkPerformanceData();
+      });
       
-      // 시간대별 통계 계산
-      const hourlyStats = getHourlyStats();
-      
-      // 배차 결과 통계 계산
-      const resultStats = getDispatchResultStats();
-      
-      // 지역별 통계 계산
-      const regionData = getRegionStats();
-      
-      // 데이터 표시
-      displaySummary(summary);
-      displayDispatcherStats(dispatcherStats);
-      displayPerformers(performersData);
-      displayHourlyStats(hourlyStats);
-      displayDispatchResultStats(resultStats);
-      displayRegionChart(regionData);
-      
-      // 툴팁 업데이트
-      updatePerformanceTooltips();
-      
-      // 로딩 완료 후 차트 컨테이너 크기 조정
-      fixChartDisplay();
+      // 모든 데이터 로드 완료 대기
+      Promise.all([getSummaryData, getDispatcherData, getHourlyData, getPerformersData, loadWorkPerformanceData])
+        .then(([summary, dispatcherStats, hourlyStats, performers]) => {
+          // 모든 데이터를 하나의 객체로 통합
+          const dashboardData = {
+            summary: summary,
+            dispatcherStats: dispatcherStats,
+            hourlyStats: hourlyStats,
+            performers: performers
+          };
+          
+          console.log('모든 데이터 로드 완료');
+          processData(dashboardData);
+          
+          // 로딩 숨기기
+          if (showSpinner) {
+            hideLoading();
+          }
+          
+          isLoading = false;
+        })
+        .catch((error) => {
+          console.error('데이터 로드 중 오류 발생:', error);
+          showError('데이터를 가져오는데 실패했습니다.');
+          isLoading = false;
+        });
     } catch (error) {
-      console.error('데이터 로딩 중 오류:', error);
-      handleError('데이터 로딩 중 오류가 발생했습니다.');
-    } finally {
-      // 로딩 상태 해제
+      console.error('loadData 실행 중 오류:', error);
+      showError('데이터 로드 중 오류가 발생했습니다.');
       isLoading = false;
-      
-      // 로딩 표시 해제
-      if (showSpinner) {
-        document.getElementById('loading').style.opacity = '0';
-        document.getElementById('dashboard-content').style.opacity = '1';
-      }
     }
   }

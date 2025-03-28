@@ -613,49 +613,127 @@
       }
       
       try {
-        // 근무자 실적 데이터 로드
-        // 비동기 처리를 위한 Promise 생성
-        const loadWorkPerformanceData = new Promise((resolve) => {
+        // 요약 데이터 가져오기
+        const getSummaryData = new Promise((resolveSum) => {
           google.script.run
             .withSuccessHandler((data) => {
-              workPerformanceData = data || {};  // null이면 빈 객체로 초기화
-              console.log('근무자 실적 데이터 로드 완료');
-              resolve();
+              console.log('요약 데이터 로드 성공');
+              resolveSum(data);
             })
             .withFailureHandler((error) => {
-              console.error('근무자 실적 데이터 로드 오류:', error);
-              workPerformanceData = {};  // 오류 발생 시 빈 객체로 초기화
-              resolve();
+              console.error('요약 데이터 로드 오류:', error);
+              resolveSum(null);
             })
-            .getWorkPerformanceData();
+            .getDispatchSummary();
         });
         
-        // 근무자 실적 데이터 로드 완료 대기
-        await loadWorkPerformanceData;
-        console.log('근무자 실적 데이터 로드 완료:', workPerformanceData);
+        // 담당자별 통계 가져오기
+        const getDispatcherData = new Promise((resolveDisp) => {
+          google.script.run
+            .withSuccessHandler((data) => {
+              console.log('담당자별 통계 로드 성공');
+              resolveDisp(data);
+            })
+            .withFailureHandler((error) => {
+              console.error('담당자별 통계 로드 오류:', error);
+              resolveDisp(null);
+            })
+            .getDispatcherStats();
+        });
         
-        // 데이터 가져오기
-        const data = await fetchData();
+        // 시간대별 통계 가져오기
+        const getHourlyData = new Promise((resolveHourly) => {
+          google.script.run
+            .withSuccessHandler((data) => {
+              console.log('시간대별 통계 로드 성공');
+              resolveHourly(data);
+            })
+            .withFailureHandler((error) => {
+              console.error('시간대별 통계 로드 오류:', error);
+              resolveHourly(null);
+            })
+            .getHourlyStats();
+        });
         
-        if (!data) {
-          showError('데이터를 가져오는데 실패했습니다.');
-          isLoading = false;
-          return;
-        }
+        // 고성과자/저성과자 데이터 가져오기
+        const getPerformersData = new Promise((resolvePerf) => {
+          google.script.run
+            .withSuccessHandler((data) => {
+              console.log('성과자 데이터 로드 성공');
+              resolvePerf(data);
+            })
+            .withFailureHandler((error) => {
+              console.error('성과자 데이터 로드 오류:', error);
+              resolvePerf(null);
+            })
+            .getTopPerformers();
+        });
         
-        // 데이터 처리
-        processData(data);
-        
-        // 로딩 숨기기
-        if (showSpinner) {
-          hideLoading();
-        }
-        
-        isLoading = false;
+        // 모든 데이터 로드 완료 대기
+        Promise.all([getSummaryData, getDispatcherData, getHourlyData, getPerformersData])
+          .then(([summary, dispatcherStats, hourlyStats, performers]) => {
+            // 모든 데이터를 하나의 객체로 통합
+            const dashboardData = {
+              summary: summary,
+              dispatcherStats: dispatcherStats,
+              hourlyStats: hourlyStats,
+              performers: performers
+            };
+            
+            console.log('모든 데이터 로드 완료');
+            processData(dashboardData);
+          })
+          .catch((error) => {
+            console.error('데이터 로드 중 오류 발생:', error);
+            showError('데이터 로드 중 오류가 발생했습니다.');
+          });
       } catch (error) {
-        console.error('데이터 로드 중 오류:', error);
+        console.error('fetchData 실행 중 오류:', error);
         showError('데이터 로드 중 오류가 발생했습니다.');
-        isLoading = false;
+      }
+    }
+    
+    // 데이터 처리 함수
+    function processData(data) {
+      if (!data) return;
+      
+      try {
+        // 차트 데이터 저장
+        chartData = data;
+        
+        // 요약 통계 표시
+        if (data.summary) {
+          displaySummary(data.summary);
+        }
+        
+        // 시간대별 통계 표시
+        if (data.hourlyStats && data.hourlyStats.length > 0) {
+          displayHourlyStats(data.hourlyStats);
+        }
+        
+        // 담당자별 통계 표시
+        if (data.dispatcherStats) {
+          displayDispatcherStats(data.dispatcherStats);
+        }
+        
+        // 고성과자/저성과자 표시
+        if (data.performers) {
+          displayPerformers(data.performers);
+        }
+        
+        // 정렬 이벤트 리스너 설정
+        setupSortListeners();
+        
+        // 테이블 캡처 버튼 설정
+        setupCaptureButton();
+        
+        // 필터 이벤트 리스너 설정
+        setupFilterListener();
+        
+        console.log('데이터 처리 완료');
+      } catch (error) {
+        console.error('데이터 처리 중 오류:', error);
+        showError('데이터 처리 중 오류가 발생했습니다.');
       }
     }
     
@@ -1572,70 +1650,5 @@
       
       // 로딩 표시 숨기기
       hideLoading();
-    }
-    
-    // 서버에서 데이터 가져오기
-    async function fetchData() {
-      return new Promise((resolve) => {
-        try {
-          google.script.run
-            .withSuccessHandler((data) => {
-              console.log('데이터 로드 성공');
-              resolve(data);
-            })
-            .withFailureHandler((error) => {
-              console.error('데이터 로드 오류:', error);
-              resolve(null);
-            })
-            .getDashboardData();
-        } catch (error) {
-          console.error('fetchData 실행 중 오류:', error);
-          resolve(null);
-        }
-      });
-    }
-    
-    // 데이터 처리 함수
-    function processData(data) {
-      if (!data) return;
-      
-      try {
-        // 차트 데이터 저장
-        chartData = data;
-        
-        // 요약 통계 표시
-        if (data.summary) {
-          displaySummary(data.summary);
-        }
-        
-        // 시간대별 통계 표시
-        if (data.hourlyStats && data.hourlyStats.length > 0) {
-          displayHourlyStats(data.hourlyStats);
-        }
-        
-        // 담당자별 통계 표시
-        if (data.dispatcherStats) {
-          displayDispatcherStats(data.dispatcherStats);
-        }
-        
-        // 고성과자/저성과자 표시
-        if (data.performers) {
-          displayPerformers(data.performers);
-        }
-        
-        // 정렬 이벤트 리스너 설정
-        setupSortListeners();
-        
-        // 테이블 캡처 버튼 설정
-        setupCaptureButton();
-        
-        // 필터 이벤트 리스너 설정
-        setupFilterListener();
-        
-        console.log('데이터 처리 완료');
-      } catch (error) {
-        console.error('데이터 처리 중 오류:', error);
-        showError('데이터 처리 중 오류가 발생했습니다.');
-      }
     }
   </script>
