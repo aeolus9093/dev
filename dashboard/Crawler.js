@@ -162,7 +162,7 @@ const DISPATCHER_RANGES = [
         Logger.log("새로운 '실적' 시트가 생성되었습니다.");
         
         // A~T 컬럼의 Bold 처리 해제
-        newSheet.getRange("A1:T1").setFontWeight("normal");
+        newSheet.getRange("A2:T").setFontWeight("normal");
         Logger.log("A~T 컬럼의 Bold 처리가 해제되었습니다.");
         
         // Q~S 컬럼의 서식을 HH:MM:SS 형태로 변경
