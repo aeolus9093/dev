@@ -296,11 +296,15 @@
         background-color: #e9ecef;
         border-radius: 2px;
         overflow: hidden;
+        position: relative; /* 위치 기준점 설정 */
       }
       
       .bar-sparkline-fill {
         height: 100%;
         background-color: #0d6efd;
+        position: absolute; /* 절대 위치 설정 */
+        left: 0;
+        top: 0;
       }
     </style>
   </head>
@@ -1877,7 +1881,7 @@
       // 모든 차트 컨테이너의 스타일 수정
       setChartContainersFullWidth();
       
-      // 저장된 차트 다시 그리기 함수 호출
+      // 차트 다시 그리기 함수 호출
       if (typeof window.drawResultChart === 'function') window.drawResultChart();
       if (typeof window.drawRegionChart === 'function') window.drawRegionChart();
       if (typeof window.drawHourlyChart === 'function') window.drawHourlyChart();
