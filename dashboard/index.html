@@ -1170,6 +1170,7 @@
         barFill.className = 'bar-sparkline-fill';
         barFill.style.width = value + '%';
         barFill.style.backgroundColor = barColor;
+        barFill.style.opacity = '1';
         barContainer.appendChild(barFill);
       });
     }
@@ -1353,7 +1354,7 @@
             // 원래 색상 가져오기
             const originalColor = bar.style.backgroundColor;
             // 색상 강제 적용을 위해 다시 설정
-            bar.style.backgroundColor = originalColor;
+            bar.style.cssText = `width: ${bar.style.width}; background-color: ${originalColor} !important; opacity: 1 !important;`;
           });
           
           // 테이블 캡처
@@ -1390,9 +1391,7 @@
                 if (index < clonedBarSparklines.length) {
                   const clonedBar = clonedBarSparklines[index];
                   // 원본 바의 배경색 가져와서 클론에 적용
-                  clonedBar.style.backgroundColor = originalBar.style.backgroundColor;
-                  // 불투명도 100%로 설정하여 색상이 제대로 보이도록 함
-                  clonedBar.style.opacity = '1';
+                  clonedBar.style.cssText = `width: ${clonedBar.style.width}; background-color: ${originalBar.style.backgroundColor} !important; opacity: 1 !important;`;
                 }
               });
             }
@@ -1411,7 +1410,7 @@
             await new Promise((resolve, reject) => {
               img.onload = resolve;
               img.onerror = reject;
-              // 이미 캐시된 경우를 대비해 타임아웃 설정
+              // 이미지가 캐시된 경우를 대비해 타임아웃 설정
               setTimeout(resolve, 200);
             });
             
