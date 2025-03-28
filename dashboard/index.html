@@ -1347,6 +1347,15 @@
             canvas.getContext('2d').putImageData(imageData, 0, 0);
           });
           
+          // 바 스파크라인 색상 강제 적용
+          const barSparklines = statsTable.querySelectorAll('.bar-sparkline-fill');
+          barSparklines.forEach(bar => {
+            // 원래 색상 가져오기
+            const originalColor = bar.style.backgroundColor;
+            // 색상 강제 적용을 위해 다시 설정
+            bar.style.backgroundColor = originalColor;
+          });
+          
           // 테이블 캡처
           const canvas = await html2canvas(statsTable, {
             backgroundColor: '#ffffff',
@@ -1370,6 +1379,20 @@
                   
                   // 클론된 캔버스에 이미지 데이터 복사
                   clonedCtx.putImageData(imageData, 0, 0);
+                }
+              });
+              
+              // 클론된 문서에서 바 스파크라인 찾기
+              const clonedBarSparklines = clonedDoc.querySelectorAll('.bar-sparkline-fill');
+              
+              // 원본 바 스파크라인에서 클론된 바 스파크라인으로 스타일 복사
+              barSparklines.forEach((originalBar, index) => {
+                if (index < clonedBarSparklines.length) {
+                  const clonedBar = clonedBarSparklines[index];
+                  // 원본 바의 배경색 가져와서 클론에 적용
+                  clonedBar.style.backgroundColor = originalBar.style.backgroundColor;
+                  // 불투명도 100%로 설정하여 색상이 제대로 보이도록 함
+                  clonedBar.style.opacity = '1';
                 }
               });
             }
@@ -1451,8 +1474,11 @@
             document.body.removeChild(downloadLink);
             alert('클립보드 복사에 실패했습니다. 이미지가 다운로드됩니다.');
             
-            // 로딩 표시 제거
-            document.body.removeChild(loadingDiv);
+            // 로딩 표시가 남아있는 경우 제거
+            const loadingElement = document.querySelector('.position-fixed.bg-dark.bg-opacity-50');
+            if (loadingElement) {
+              document.body.removeChild(loadingElement);
+            }
           }
         } catch (error) {
           console.error('테이블 캡처 중 오류 발생:', error);
