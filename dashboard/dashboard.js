@@ -202,8 +202,17 @@ function doGet() {
     }
   }
   
-  // 전역 객체에 함수 노출
-  window.getWorkPerformanceData = getWorkPerformanceData;
+  // 전역 객체에 함수 노출 (브라우저 환경과 Node.js 환경 모두 지원)
+  if (typeof window !== 'undefined') {
+    window.getWorkPerformanceData = getWorkPerformanceData;
+  } else if (typeof global !== 'undefined') {
+    global.getWorkPerformanceData = getWorkPerformanceData;
+  } else {
+    // 다른 환경에서는 exports 사용
+    if (typeof exports !== 'undefined') {
+      exports.getWorkPerformanceData = getWorkPerformanceData;
+    }
+  }
   
   // 근무자 실적 데이터 캐시를 관리하는 함수
   function getWorkPerformanceCachedData() {
