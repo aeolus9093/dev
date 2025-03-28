@@ -555,6 +555,8 @@
       regions: [],
       summary: null
     };
+    let rawData = []; // 원시 데이터를 저장할 전역 변수
+    let regionChartData = []; // 지역별 차트 데이터
     
     // 로딩 표시 함수
     function showLoading() {
@@ -1849,4 +1851,26 @@
         }
       });
     }
+  </script>
+
+  <script>
+    // 스크립트 초기화
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        console.log('대시보드 초기화 시작');
+        
+        // 차트 초기화
+        if (typeof initCharts === 'function') {
+          initCharts();
+        } else {
+          console.error('initCharts 함수를 찾을 수 없습니다.');
+          showError('차트 초기화 함수를 찾을 수 없습니다.');
+        }
+        
+        console.log('대시보드 초기화 완료');
+      } catch (error) {
+        console.error('초기화 중 오류 발생:', error);
+        showError('대시보드 초기화 중 오류가 발생했습니다.');
+      }
+    });
   </script>

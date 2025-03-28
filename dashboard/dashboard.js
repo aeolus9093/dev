@@ -5,6 +5,39 @@
  * 실적 탭에 있는 데이터를 시각화하여 웹앱으로 제공합니다.
  */
 
+// 전역 변수
+let chartData = null;
+let filterText = '';
+let sortConfig = { column: null, direction: 'desc', clickCount: 0 };
+let isLoading = false;
+let workPerformanceData = {};
+let rawData = []; // 원시 데이터를 저장할 전역 변수
+
+// 초기화 함수
+function initCharts() {
+  // 구글 차트 로드
+  google.charts.load('current', {'packages':['corechart', 'bar']});
+  google.charts.setOnLoadCallback(() => {
+    console.log('구글 차트 로드 완료');
+    loadData();
+  });
+  
+  // 새로고침 버튼 이벤트 설정
+  const refreshButton = document.getElementById('refresh-button');
+  if (refreshButton) {
+    refreshButton.addEventListener('click', () => {
+      loadData(true);
+    });
+  }
+  
+  // 자동 새로고침 설정 (5분마다)
+  setInterval(() => {
+    if (!document.hidden) {
+      loadData(false);
+    }
+  }, 5 * 60 * 1000);
+}
+
 // 웹앱의 기본 HTML을 생성하는 함수
 function doGet() {
     return HtmlService.createTemplateFromFile('Index')
@@ -696,18 +729,18 @@ function doGet() {
     try {
       console.log('데이터 로드 시작');
       
-      // 원시 데이터 가져오기
-      const getRawData = new Promise((resolveRaw) => {
+      // 원시 데이터 가져오기 (배차 데이터)
+      const getDispatchDataPromise = new Promise((resolve) => {
         google.script.run
           .withSuccessHandler((data) => {
-            console.log('원시 데이터 로드 성공:', data ? data.length + '개 항목' : '데이터 없음');
+            console.log('원시 배차 데이터 로드 성공:', data ? data.length + '개 항목' : '데이터 없음');
             rawData = data || []; // 전역 변수에 원시 데이터 저장
-            resolveRaw(data);
+            resolve(data);
           })
           .withFailureHandler((error) => {
-            console.error('원시 데이터 로드 오류:', error);
+            console.error('원시 배차 데이터 로드 오류:', error);
             rawData = []; // 오류 시 빈 배열로 초기화
-            resolveRaw(null);
+            resolve(null);
           })
           .getDispatchData();
       });
@@ -786,58 +819,68 @@ function doGet() {
       
       console.log('모든 Promise 생성 완료, Promise.all 시작');
       
-      // 모든 데이터를 한 번에 로드
-      Promise.all([getRawData, getSummaryData, getDispatcherData, getHourlyData, getPerformersData, loadWorkPerformanceData])
-        .then(([rawDataResult, summary, dispatcherStats, hourlyStats, performers]) => {
-          console.log('Promise.all 완료, 데이터 처리 시작');
-          
-          // 배차 결과 통계 계산
-          let dispatchResultStats = [];
-          try {
-            dispatchResultStats = getDispatchResultStats();
-            console.log('배차 결과 통계 계산 완료:', dispatchResultStats.length + '개 항목');
-          } catch (error) {
-            console.error('배차 결과 통계 계산 오류:', error);
-          }
-          
-          // 지역별 통계 계산
-          let regionStats = [];
-          try {
-            regionStats = getRegionStats();
-            console.log('지역별 통계 계산 완료:', regionStats.length + '개 항목');
-          } catch (error) {
-            console.error('지역별 통계 계산 오류:', error);
-          }
-          
-          // 모든 데이터를 하나의 객체로 통합
-          const dashboardData = {
-            summary: summary,
-            dispatcherStats: dispatcherStats,
-            hourlyStats: hourlyStats,
-            performers: performers,
-            dispatchResultStats: dispatchResultStats,
-            regionStats: regionStats
-          };
-          
-          console.log('데이터 통합 완료, processData 호출');
-          processData(dashboardData);
-          
-          // 로딩 숨기기
-          if (showSpinner) {
-            hideLoading();
-          }
-          
-          isLoading = false;
-          console.log('데이터 로드 완료');
-        })
-        .catch((error) => {
-          console.error('데이터 로드 중 오류 발생:', error);
-          showError('데이터를 가져오는데 실패했습니다.');
-          if (showSpinner) {
-            hideLoading();
-          }
-          isLoading = false;
-        });
+      // 먼저 원시 데이터를 로드한 후 다른 데이터 처리
+      getDispatchDataPromise.then(() => {
+        // 모든 데이터를 한 번에 로드
+        Promise.all([getSummaryData, getDispatcherData, getHourlyData, getPerformersData, loadWorkPerformanceData])
+          .then(([summary, dispatcherStats, hourlyStats, performers]) => {
+            console.log('Promise.all 완료, 데이터 처리 시작');
+            
+            // 배차 결과 통계 계산
+            let dispatchResultStats = [];
+            try {
+              dispatchResultStats = getDispatchResultStats();
+              console.log('배차 결과 통계 계산 완료:', dispatchResultStats.length + '개 항목');
+            } catch (error) {
+              console.error('배차 결과 통계 계산 오류:', error);
+            }
+            
+            // 지역별 통계 계산
+            let regionStats = [];
+            try {
+              regionStats = getRegionStats();
+              console.log('지역별 통계 계산 완료:', regionStats.length + '개 항목');
+            } catch (error) {
+              console.error('지역별 통계 계산 오류:', error);
+            }
+            
+            // 모든 데이터를 하나의 객체로 통합
+            const dashboardData = {
+              summary: summary,
+              dispatcherStats: dispatcherStats,
+              hourlyStats: hourlyStats,
+              performers: performers,
+              dispatchResultStats: dispatchResultStats,
+              regionStats: regionStats
+            };
+            
+            console.log('데이터 통합 완료, processData 호출');
+            processData(dashboardData);
+            
+            // 로딩 숨기기
+            if (showSpinner) {
+              hideLoading();
+            }
+            
+            isLoading = false;
+            console.log('데이터 로드 완료');
+          })
+          .catch((error) => {
+            console.error('데이터 로드 중 오류 발생:', error);
+            showError('데이터를 가져오는데 실패했습니다.');
+            if (showSpinner) {
+              hideLoading();
+            }
+            isLoading = false;
+          });
+      }).catch((error) => {
+        console.error('원시 데이터 로드 중 오류 발생:', error);
+        showError('원시 데이터를 가져오는데 실패했습니다.');
+        if (showSpinner) {
+          hideLoading();
+        }
+        isLoading = false;
+      });
     } catch (error) {
       console.error('loadData 실행 중 오류:', error);
       showError('데이터 로드 중 오류가 발생했습니다.');
