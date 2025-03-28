@@ -573,7 +573,24 @@
       
       try {
         // 근무자 실적 데이터 로드
-        workPerformanceData = await getWorkPerformanceData();
+        // 비동기 처리를 위한 Promise 생성
+        const loadWorkPerformanceData = new Promise((resolve) => {
+          google.script.run
+            .withSuccessHandler((data) => {
+              workPerformanceData = data || {};  // null이면 빈 객체로 초기화
+              console.log('근무자 실적 데이터 로드 완료');
+              resolve();
+            })
+            .withFailureHandler((error) => {
+              console.error('근무자 실적 데이터 로드 오류:', error);
+              workPerformanceData = {};  // 오류 발생 시 빈 객체로 초기화
+              resolve();
+            })
+            .getWorkPerformanceData();
+        });
+        
+        // 근무자 실적 데이터 로드 완료 대기
+        await loadWorkPerformanceData;
         console.log('근무자 실적 데이터 로드 완료:', workPerformanceData);
         
         // 데이터 가져오기
@@ -771,6 +788,8 @@
     // 담당자 통계 테이블 렌더링
     function renderDispatcherTable() {
       const tableBody = document.getElementById('dispatcher-stats-body');
+      if (!tableBody) return;  // 테이블 본문이 없으면 함수 종료
+      
       tableBody.innerHTML = '';
       
       // 데이터 필터링 및 정렬
@@ -792,14 +811,47 @@
         const dispatcherCell = row.insertCell(0);
         dispatcherCell.textContent = dispatcher;
         
-        // 근무자 실적 데이터 가져오기
+        // 근무자 실적 데이터 가져오기 (null 체크 추가)
         const performanceData = workPerformanceData && workPerformanceData[dispatcher.toString().toLowerCase().trim()];
         
         // 시프트 셀
         const shiftCell = row.insertCell(1);
         
-        // 시프트에 따른 스타일 적용
-        if (s.workShift) {
+        // 시프트 정보 표시 (workPerformanceData에서 가져오거나 기존 데이터 사용)
+        if (performanceData && performanceData.workShift) {
+          let shiftText = performanceData.workShift.toString();
+          let shiftSpan = document.createElement('span');
+          
+          // M-4&C-4 시프트 처리 (최우선 적용)
+          if (shiftText.includes('M-4&C') || shiftText.includes('M-4 & C') || shiftText.includes('M-4&C-4')) {
+            shiftSpan.className = 'shift-mc';
+            shiftSpan.textContent = shiftText; // 전체 텍스트를 그대로 표시
+          } 
+          // 다른 시프트 처리
+          else {
+            // 시프트 배경색 및 글자색 설정
+            if (shiftText.includes('OP')) {
+              shiftSpan.className = 'shift-op';
+            } else if (shiftText.includes('MID')) {
+              shiftSpan.className = 'shift-mid';
+            } else if (shiftText.includes('CL')) {
+              shiftSpan.className = 'shift-cl';
+            } else if (shiftText.includes('NT')) {
+              shiftSpan.className = 'shift-nt';
+            }
+            
+            // -4가 포함된 경우 -4 부분만 노란색으로 변경
+            if (shiftText.includes('-4')) {
+              const parts = shiftText.split('-4');
+              shiftSpan.innerHTML = parts[0] + '<span class="shift-4">-4</span>' + (parts[1] || '');
+            } else {
+              shiftSpan.textContent = shiftText;
+            }
+          }
+          
+          shiftCell.appendChild(shiftSpan);
+        } else if (s.workShift) {
+          // 기존 데이터 사용
           let shiftText = s.workShift.toString();
           let shiftSpan = document.createElement('span');
           
@@ -831,6 +883,8 @@
           }
           
           shiftCell.appendChild(shiftSpan);
+        } else {
+          shiftCell.textContent = '-';
         }
         
         // WH 셀
