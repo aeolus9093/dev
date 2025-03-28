@@ -108,10 +108,10 @@ function doGet() {
         };
         
         // 근무자 실적 데이터에서 해당 담당자 정보 찾기
-        if (workPerformanceData && workPerformanceData[dispatcher]) {
-          stats[dispatcher].workShift = workPerformanceData[dispatcher].workShift;
-          stats[dispatcher].workHours = workPerformanceData[dispatcher].workHours;
-          stats[dispatcher].goalAchievement = workPerformanceData[dispatcher].goalAchievement;
+        if (workPerformanceData && workPerformanceData[dispatcher.toString().toLowerCase().trim()]) {
+          stats[dispatcher].workShift = workPerformanceData[dispatcher.toString().toLowerCase().trim()].workShift;
+          stats[dispatcher].workHours = workPerformanceData[dispatcher.toString().toLowerCase().trim()].workHours;
+          stats[dispatcher].goalAchievement = workPerformanceData[dispatcher.toString().toLowerCase().trim()].goalAchievement;
         }
       }
       
@@ -203,13 +203,15 @@ function doGet() {
       // 헤더 행 제외
       const data = values.slice(1);
       
-      // 담당자별 데이터 매핑
+      // 담당자별 데이터 매핑 (대소문자 구분 없이)
       const workPerformanceMap = {};
       
       data.forEach(row => {
         const dispatcher = row[1]; // B열: 상담사(담당자) 이름
         if (dispatcher && dispatcher.toString().trim() !== '') {
-          workPerformanceMap[dispatcher] = {
+          // 소문자로 변환하여 저장 (대소문자 구분 없이 매칭하기 위함)
+          const dispatcherLower = dispatcher.toString().toLowerCase().trim();
+          workPerformanceMap[dispatcherLower] = {
             workShift: row[2],   // C열: 근무 시프트
             workHours: row[3],   // D열: 근무 시간
             goalAchievement: row[51]  // AZ열: 목표 달성
