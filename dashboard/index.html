@@ -427,7 +427,7 @@
             <div class="card">
               <div class="card-header">고성과자 Top 5</div>
               <div class="card-body table-responsive p-0" style="max-height: 300px;">
-                <table class="table table-striped table-hover mb-0">
+                <table id="top-performers-table" class="table table-striped table-hover mb-0">
                   <thead>
                     <tr>
                       <th>순위</th>
@@ -450,7 +450,7 @@
             <div class="card">
               <div class="card-header">저성과자 Bottom 5</div>
               <div class="card-body table-responsive p-0" style="max-height: 300px;">
-                <table class="table table-striped table-hover mb-0">
+                <table id="bottom-performers-table" class="table table-striped table-hover mb-0">
                   <thead>
                     <tr>
                       <th>순위</th>
@@ -1005,12 +1005,12 @@
           // 30% 미만: 빨간색 (낮음)
           opPercentText.style.color = '#dc3545';
           opPercentText.style.fontWeight = 'bold';
-        } else if (opPercent > 70) {
-          // 70% 초과: 파란색 (높음)
+        } else if (opPercent > 50) {
+          // 50% 초과: 파란색 (높음)
           opPercentText.style.color = '#0d6efd';
           opPercentText.style.fontWeight = 'bold';
         } else {
-          // 30~70%: 중간 값 - 회색
+          // 30~50%: 중간 값 - 회색
           opPercentText.style.color = '#6c757d';
         }
         opPercentText.textContent = `${s.operatorDispatch} (${opPercent}%)`;
@@ -1031,7 +1031,7 @@
         let opSparklineColor;
         if (opPercent < 30) {
           opSparklineColor = '#dc3545'; // 빨간색 (낮음)
-        } else if (opPercent > 70) {
+        } else if (opPercent > 50) {
           opSparklineColor = '#0d6efd'; // 파란색 (높음)
         } else {
           opSparklineColor = '#6c757d'; // 회색 (중간)
@@ -1044,16 +1044,16 @@
         
         // 시스템 배차 비율에 따른 색상 적용 (3단계 분류)
         const sysPercentText = document.createElement('span');
-        if (sysPercent > 70) {
-          // 70% 초과: 빨간색 (높음)
+        if (sysPercent > 45) {
+          // 45% 초과: 빨간색 (높음)
           sysPercentText.style.color = '#dc3545';
           sysPercentText.style.fontWeight = 'bold';
         } else if (sysPercent < 30) {
           // 30% 미만: 톤다운된 초록색 (낮음)
-          sysPercentText.style.color = '#2e7d32';
+          sysPercentText.style.color = '#2e7d32'; 
           sysPercentText.style.fontWeight = 'bold';
         } else {
-          // 30~70%: 중간 값 - 회색
+          // 30~45%: 중간 값 - 회색
           sysPercentText.style.color = '#6c757d';
         }
         sysPercentText.textContent = `${s.systemDispatch} (${sysPercent}%)`;
@@ -1072,7 +1072,7 @@
         
         // 시스템 배차 비율에 따른 스파크라인 색상 설정
         let sysSparklineColor;
-        if (sysPercent > 70) {
+        if (sysPercent > 45) {
           sysSparklineColor = '#dc3545'; // 빨간색 (높음)
         } else if (sysPercent < 30) {
           sysSparklineColor = '#2e7d32'; // 톤다운된 초록색 (낮음)
@@ -1324,7 +1324,7 @@
       const captureButton = document.getElementById('capture-table');
       const statsTable = document.getElementById('dispatcher-stats-table');
       
-      captureButton.addEventListener('click', async () => {
+      captureButton.addEventListener('click', function() {
         try {
           // 로딩 표시
           const loadingDiv = document.createElement('div');
@@ -1340,42 +1340,50 @@
           statsTable.style.backgroundColor = '#ffffff';
           statsTable.style.border = '1px solid #dee2e6';
           
-          // 테이블 캡처
-          const canvas = await html2canvas(statsTable, {
+          // 테이블 캡처 - async/await 대신 프로미스 체인 사용
+          html2canvas(statsTable, {
             backgroundColor: '#ffffff',
             scale: 2, // 고해상도로 캡처
             logging: true, // 디버깅을 위해 로깅 활성화
             useCORS: true,
             allowTaint: true,
             foreignObjectRendering: false // 호환성 문제 해결
+          }).then(function(canvas) {
+            // 원래 테이블 스타일 복원
+            statsTable.style.cssText = originalTableStyle;
+            
+            // 캔버스를 이미지로 변환
+            const imageData = canvas.toDataURL('image/png');
+            
+            // 다운로드 링크 생성 (클립보드 복사 대신 다운로드 방식으로 변경)
+            const downloadLink = document.createElement('a');
+            downloadLink.href = imageData;
+            downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            
+            // 완료 메시지
+            alert('테이블 이미지가 다운로드되었습니다.');
+            
+            // 로딩 표시 제거
+            document.body.removeChild(loadingDiv);
+          }).catch(function(error) {
+            console.error('테이블 캡처 중 오류 발생:', error);
+            alert('테이블 캡처 중 오류가 발생했습니다: ' + error.message);
+            
+            // 원래 테이블 스타일 복원
+            statsTable.style.cssText = originalTableStyle;
+            
+            // 로딩 표시가 남아있을 경우 제거
+            if (document.body.contains(loadingDiv)) {
+              document.body.removeChild(loadingDiv);
+            }
           });
-          
-          // 원래 테이블 스타일 복원
-          statsTable.style.cssText = originalTableStyle;
-          
-          // 캔버스를 이미지로 변환
-          const imageData = canvas.toDataURL('image/png');
-          
-          // 다운로드 링크 생성 (클립보드 복사 대신 다운로드 방식으로 변경)
-          const downloadLink = document.createElement('a');
-          downloadLink.href = imageData;
-          downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
-          downloadLink.style.display = 'none';
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-          
-          // 완료 메시지
-          alert('테이블 이미지가 다운로드되었습니다.');
-          
-          // 로딩 표시 제거
-          document.body.removeChild(loadingDiv);
         } catch (error) {
-          console.error('테이블 캡처 중 오류 발생:', error);
-          alert('테이블 캡처 중 오류가 발생했습니다: ' + error.message);
-          // 로딩 표시가 남아있을 경우 제거
-          const loadingDiv = document.querySelector('.position-fixed.top-0.start-0.w-100.h-100');
-          if (loadingDiv) document.body.removeChild(loadingDiv);
+          console.error('테이블 캡처 초기화 중 오류 발생:', error);
+          alert('테이블 캡처 초기화 중 오류가 발생했습니다: ' + error.message);
         }
       });
     }
@@ -1491,12 +1499,19 @@
     
     // 고성과자/저성과자 표시 함수
     function displayPerformers(performersData) {
-      if (!performersData) return;
+      // 테이블 참조 가져오기
+      const topTable = document.getElementById('top-performers-table');
+      const bottomTable = document.getElementById('bottom-performers-table');
+      
+      // 테이블 본문 초기화
+      const topBody = topTable.querySelector('tbody');
+      const bottomBody = bottomTable.querySelector('tbody');
+      
+      // 기존 내용 모두 제거
+      topBody.innerHTML = '';
+      bottomBody.innerHTML = '';
       
       // Top 5 고성과자 표시
-      const topBody = document.getElementById('top-performers-body');
-      topBody.innerHTML = '';
-      
       performersData.top.forEach((performer, index) => {
         const row = topBody.insertRow();
         
@@ -1599,7 +1614,6 @@
       });
       
       // Bottom 5 저성과자 표시
-      const bottomBody = document.getElementById('bottom-performers-body');
       bottomBody.innerHTML = '';
       
       performersData.bottom.forEach((performer, index) => {
