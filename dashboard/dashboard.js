@@ -202,6 +202,9 @@ function doGet() {
     }
   }
   
+  // 전역 객체에 함수 노출
+  window.getWorkPerformanceData = getWorkPerformanceData;
+  
   // 근무자 실적 데이터 캐시를 관리하는 함수
   function getWorkPerformanceCachedData() {
     // 스크립트 프로퍼티에서 마지막 업데이트 시간 가져오기

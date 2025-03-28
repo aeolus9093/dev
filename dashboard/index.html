@@ -558,142 +558,47 @@
       performers: null
     };
     
+    // 근무자 실적 데이터 전역 저장
+    let workPerformanceData = null;
+    
     // 서버에서 데이터 로드
-    function loadData(showSpinner = true, forceWorkPerformanceRefresh = false) {
+    async function loadData(showSpinner = true, forceWorkPerformanceRefresh = false) {
       if (isLoading) return; // 이미 로드 중이면 중복 요청 방지
       isLoading = true;
       
-      // 로딩 표시 (비침습적으로)
+      // 로딩 표시
       if (showSpinner) {
-        document.getElementById('loading').style.opacity = '1';
-        document.getElementById('loading').style.display = 'block';
-      } else {
-        // 작은 로딩 표시기 표시
-        const miniLoaders = document.querySelectorAll('.mini-loader');
-        miniLoaders.forEach(loader => {
-          loader.style.display = 'inline-block';
-        });
+        showLoading();
       }
       
-      // 요청 개수 설정 (비동기 요청 수)
-      let pendingRequests = 5;
-      
-      // 근무자 실적 데이터 강제 새로고침
-      if (forceWorkPerformanceRefresh) {
-        google.script.run
-          .withSuccessHandler(() => {
-            console.log('근무자 실적 데이터 강제 새로고침 완료');
-          })
-          .withFailureHandler((error) => {
-            console.error('근무자 실적 데이터 강제 새로고침 오류:', error);
-          })
-          .forceRefreshWorkPerformanceData();
-      }
-      
-      // 담당자별 통계 로드
-      google.script.run
-        .withSuccessHandler((stats) => {
-          chartData.dispatcherStats = stats;
-          displayDispatcherStats(stats);
-          
-          // 데이터 로드 완료 후 로딩 표시 숨기기
-          if (--pendingRequests === 0) {
-            hideLoading(showSpinner);
-            isLoading = false;
-          }
-        })
-        .withFailureHandler((error) => {
-          handleError(error);
-          if (--pendingRequests === 0) {
-            hideLoading(showSpinner);
-            isLoading = false;
-          }
-        })
-        .getDispatcherStats();
-      
-      // 전체 요약 통계 로드
-      google.script.run
-        .withSuccessHandler((summary) => {
-          chartData.summary = summary;
-          displaySummary(summary);
-          
-          // 데이터 로드 완료 후 로딩 표시 숨기기
-          if (--pendingRequests === 0) {
-            hideLoading(showSpinner);
-            isLoading = false;
-          }
-        })
-        .withFailureHandler((error) => {
-          handleError(error);
-          if (--pendingRequests === 0) {
-            hideLoading(showSpinner);
-            isLoading = false;
-          }
-        })
-        .getDispatchSummary();
-      
-      // 시간대별 통계 로드
-      google.script.run
-        .withSuccessHandler((hourlyStats) => {
-          chartData.hourlyStats = hourlyStats;
-          displayHourlyStats(hourlyStats);
-          
-          // 데이터 로드 완료 후 로딩 표시 숨기기
-          if (--pendingRequests === 0) {
-            hideLoading(showSpinner);
-            isLoading = false;
-          }
-        })
-        .withFailureHandler((error) => {
-          handleError(error);
-          if (--pendingRequests === 0) {
-            hideLoading(showSpinner);
-            isLoading = false;
-          }
-        })
-        .getHourlyStats();
-      
-      // 배차 결과 통계 로드
-      google.script.run
-        .withSuccessHandler((resultStats) => {
-          chartData.resultStats = resultStats;
-          displayDispatchResultStats(resultStats);
-          
-          // 데이터 로드 완료 후 로딩 표시 숨기기
-          if (--pendingRequests === 0) {
-            hideLoading(showSpinner);
-            isLoading = false;
-          }
-        })
-        .withFailureHandler((error) => {
-          handleError(error);
-          if (--pendingRequests === 0) {
-            hideLoading(showSpinner);
-            isLoading = false;
-          }
-        })
-        .getDispatchResultStats();
+      try {
+        // 근무자 실적 데이터 로드
+        workPerformanceData = await getWorkPerformanceData();
+        console.log('근무자 실적 데이터 로드 완료:', workPerformanceData);
         
-      // 고성과자/저성과자 통계 로드
-      google.script.run
-        .withSuccessHandler((performers) => {
-          chartData.performers = performers;
-          displayPerformers(performers);
-          
-          // 데이터 로드 완료 후 로딩 표시 숨기기
-          if (--pendingRequests === 0) {
-            hideLoading(showSpinner);
-            isLoading = false;
-          }
-        })
-        .withFailureHandler((error) => {
-          handleError(error);
-          if (--pendingRequests === 0) {
-            hideLoading(showSpinner);
-            isLoading = false;
-          }
-        })
-        .getTopPerformers();
+        // 데이터 가져오기
+        const data = await fetchData();
+        
+        if (!data) {
+          showError('데이터를 가져오는데 실패했습니다.');
+          isLoading = false;
+          return;
+        }
+        
+        // 데이터 처리
+        processData(data);
+        
+        // 로딩 숨기기
+        if (showSpinner) {
+          hideLoading();
+        }
+        
+        isLoading = false;
+      } catch (error) {
+        console.error('데이터 로드 중 오류:', error);
+        showError('데이터 로드 중 오류가 발생했습니다.');
+        isLoading = false;
+      }
     }
     
     // 로딩 표시 숨기기 함수
@@ -1603,6 +1508,121 @@
       refreshTimer = setInterval(() => {
         loadData(false);
       }, 300000);
+    }
+    
+    // 데이터 가져오기
+    async function fetchData() {
+      try {
+        // 여기서는 샘플 데이터를 반환합니다.
+        // 실제 환경에서는 서버에서 데이터를 가져오는 API 호출을 구현해야 합니다.
+        return {
+          dispatcherStats: {
+            "김철수": { total: 120, totalScore: 95, systemDispatch: 30, operatorDispatch: 70, normalMoving: 10, cantProcess: 5, other: 5, totalTime: 3600, avgTime: 30, timeSamples: [25, 28, 30, 32, 35] },
+            "이영희": { total: 80, totalScore: 60, systemDispatch: 40, operatorDispatch: 30, normalMoving: 5, cantProcess: 3, other: 2, totalTime: 2000, avgTime: 25, timeSamples: [20, 22, 25, 27, 30] },
+            "박지성": { total: 150, totalScore: 120, systemDispatch: 50, operatorDispatch: 80, normalMoving: 10, cantProcess: 8, other: 2, totalTime: 4500, avgTime: 30, timeSamples: [28, 29, 30, 31, 32] },
+            "최민수": { total: 100, totalScore: 85, systemDispatch: 30, operatorDispatch: 60, normalMoving: 5, cantProcess: 4, other: 1, totalTime: 2800, avgTime: 28, timeSamples: [25, 27, 28, 29, 30] },
+            "정다운": { total: 200, totalScore: 180, systemDispatch: 60, operatorDispatch: 120, normalMoving: 15, cantProcess: 3, other: 2, totalTime: 5600, avgTime: 28, timeSamples: [26, 27, 28, 29, 30] },
+            "한지민": { total: 90, totalScore: 70, systemDispatch: 40, operatorDispatch: 40, normalMoving: 5, cantProcess: 4, other: 1, totalTime: 2700, avgTime: 30, timeSamples: [28, 29, 30, 31, 32] },
+            "송혜교": { total: 110, totalScore: 90, systemDispatch: 35, operatorDispatch: 65, normalMoving: 5, cantProcess: 3, other: 2, totalTime: 3000, avgTime: 27, timeSamples: [25, 26, 27, 28, 29] },
+            "이병헌": { total: 130, totalScore: 110, systemDispatch: 40, operatorDispatch: 80, normalMoving: 5, cantProcess: 3, other: 2, totalTime: 3500, avgTime: 27, timeSamples: [25, 26, 27, 28, 29] }
+          },
+          summary: {
+            total: 980,
+            totalScore: 810,
+            systemDispatch: 325,
+            operatorDispatch: 545,
+            normalMoving: 60,
+            cantProcess: 33,
+            other: 17,
+            avgTime: 28
+          },
+          hourlyStats: {
+            "00:00": { total: 20, systemDispatch: 8, operatorDispatch: 10, other: 2 },
+            "01:00": { total: 15, systemDispatch: 5, operatorDispatch: 8, other: 2 },
+            "02:00": { total: 10, systemDispatch: 3, operatorDispatch: 5, other: 2 },
+            "03:00": { total: 5, systemDispatch: 2, operatorDispatch: 2, other: 1 },
+            "04:00": { total: 5, systemDispatch: 2, operatorDispatch: 2, other: 1 },
+            "05:00": { total: 10, systemDispatch: 3, operatorDispatch: 5, other: 2 },
+            "06:00": { total: 20, systemDispatch: 8, operatorDispatch: 10, other: 2 },
+            "07:00": { total: 30, systemDispatch: 10, operatorDispatch: 18, other: 2 },
+            "08:00": { total: 50, systemDispatch: 15, operatorDispatch: 30, other: 5 },
+            "09:00": { total: 70, systemDispatch: 25, operatorDispatch: 40, other: 5 },
+            "10:00": { total: 80, systemDispatch: 30, operatorDispatch: 45, other: 5 },
+            "11:00": { total: 85, systemDispatch: 30, operatorDispatch: 50, other: 5 },
+            "12:00": { total: 70, systemDispatch: 25, operatorDispatch: 40, other: 5 },
+            "13:00": { total: 75, systemDispatch: 25, operatorDispatch: 45, other: 5 },
+            "14:00": { total: 85, systemDispatch: 30, operatorDispatch: 50, other: 5 },
+            "15:00": { total: 90, systemDispatch: 35, operatorDispatch: 50, other: 5 },
+            "16:00": { total: 80, systemDispatch: 30, operatorDispatch: 45, other: 5 },
+            "17:00": { total: 70, systemDispatch: 25, operatorDispatch: 40, other: 5 },
+            "18:00": { total: 50, systemDispatch: 15, operatorDispatch: 30, other: 5 },
+            "19:00": { total: 30, systemDispatch: 10, operatorDispatch: 18, other: 2 },
+            "20:00": { total: 20, systemDispatch: 8, operatorDispatch: 10, other: 2 },
+            "21:00": { total: 15, systemDispatch: 5, operatorDispatch: 8, other: 2 },
+            "22:00": { total: 10, systemDispatch: 3, operatorDispatch: 5, other: 2 },
+            "23:00": { total: 5, systemDispatch: 2, operatorDispatch: 2, other: 1 }
+          },
+          resultStats: {
+            "시스템 배차": 325,
+            "오퍼레이터 배차": 545,
+            "정상 이동 중으로 확인": 60,
+            "처리 불가": 33,
+            "기타": 17
+          },
+          performers: {
+            top: ["정다운", "박지성", "이병헌", "김철수", "송혜교"],
+            bottom: ["이영희", "한지민", "최민수"]
+          }
+        };
+      } catch (error) {
+        console.error('데이터 가져오기 오류:', error);
+        return null;
+      }
+    }
+    
+    // 데이터 처리
+    function processData(data) {
+      // 차트 데이터 저장
+      chartData = data;
+      
+      // 각 섹션 데이터 표시
+      displayDispatcherStats(data.dispatcherStats);
+      displaySummary(data.summary);
+      displayHourlyStats(data.hourlyStats);
+      displayDispatchResultStats(data.resultStats);
+      displayPerformers(data.performers);
+      
+      console.log('데이터 처리 완료');
+    }
+    
+    // 로딩 표시 함수
+    function showLoading() {
+      document.getElementById('loading').style.opacity = '1';
+      document.getElementById('loading').style.display = 'block';
+    }
+    
+    // 로딩 숨기기 함수
+    function hideLoading() {
+      document.getElementById('loading').style.opacity = '0';
+      setTimeout(() => {
+        document.getElementById('loading').style.display = 'none';
+      }, 300);
+    }
+    
+    // 에러 표시 함수
+    function showError(message) {
+      const errorDiv = document.getElementById('error-message');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      
+      // 3초 후 에러 메시지 숨기기
+      setTimeout(() => {
+        errorDiv.style.opacity = '0';
+        setTimeout(() => {
+          errorDiv.style.display = 'none';
+          errorDiv.style.opacity = '1';
+        }, 300);
+      }, 3000);
     }
     
     // 문서 로드 완료 시 이벤트 리스너 설정
