@@ -702,50 +702,82 @@
     
     // 데이터 처리 함수
     function processData(data) {
-      if (!data) return;
+      if (!data) {
+        console.error('처리할 데이터가 없습니다.');
+        return;
+      }
       
       try {
+        console.log('데이터 처리 시작:', data);
+        
         // 차트 데이터 저장
         chartData = data;
         
         // 요약 통계 표시
         if (data.summary) {
           displaySummary(data.summary);
+          console.log('요약 통계 표시 완료');
+        } else {
+          console.warn('요약 데이터가 없습니다.');
         }
         
         // 시간대별 통계 표시
         if (data.hourlyStats && data.hourlyStats.length > 0) {
           displayHourlyStats(data.hourlyStats);
+          console.log('시간대별 통계 표시 완료');
+        } else {
+          console.warn('시간대별 통계 데이터가 없습니다.');
         }
         
         // 담당자별 통계 표시
         if (data.dispatcherStats) {
           displayDispatcherStats(data.dispatcherStats);
+          console.log('담당자별 통계 표시 완료');
+        } else {
+          console.warn('담당자별 통계 데이터가 없습니다.');
         }
         
         // 고성과자/저성과자 표시
         if (data.performers) {
           displayPerformers(data.performers);
+          console.log('성과자 데이터 표시 완료');
+        } else {
+          console.warn('성과자 데이터가 없습니다.');
         }
         
         // 배차 결과 통계 표시
         if (data.dispatchResultStats) {
           displayDispatchResultStats(data.dispatchResultStats);
+          console.log('배차 결과 통계 표시 완료');
+        } else {
+          console.warn('배차 결과 통계 데이터가 없습니다.');
         }
         
         // 지역별 통계 차트 표시
         if (data.regionStats) {
           displayRegionChart(data.regionStats);
+          console.log('지역별 통계 차트 표시 완료');
+        } else {
+          console.warn('지역별 통계 데이터가 없습니다.');
         }
         
         // 필터 이벤트 리스너 설정
         setupFilterListener();
+        console.log('필터 리스너 설정 완료');
         
         // 테이블 캡처 버튼 설정
         setupCaptureButton();
+        console.log('캡처 버튼 설정 완료');
         
         // 차트 크기 조정
-        setTimeout(fixChartDisplay, 500);
+        setTimeout(function() {
+          try {
+            fixChartDisplay();
+            console.log('차트 크기 조정 완료 후 처리 완료');
+          } catch (e) {
+            console.error('차트 크기 조정 중 오류:', e);
+          }
+        }, 500);
         
         console.log('데이터 처리 완료');
       } catch (error) {
@@ -1309,12 +1341,20 @@
   
   // 지역별 차트 표시
   function displayRegionChart(regionData) {
-    if (!regionData || regionData.length === 0) return;
+    if (!regionData || regionData.length === 0) {
+      console.warn('지역별 차트 데이터가 없습니다.');
+      return;
+    }
     
     const chartContainer = document.getElementById('region-chart');
-    if (!chartContainer) return;
+    if (!chartContainer) {
+      console.warn('지역별 차트 컨테이너를 찾을 수 없습니다.');
+      return;
+    }
     
     try {
+      console.log('지역별 차트 그리기 시작:', regionData);
+      
       // DataTable 생성
       const dataTable = new google.visualization.DataTable();
       dataTable.addColumn('string', '지역');
@@ -1343,9 +1383,12 @@
         colors: ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#8064A2', '#4E9A06']
       };
       
+      console.log('지역별 차트 옵션 설정 완료');
+      
       // 차트 그리기
       const chart = new google.visualization.PieChart(chartContainer);
       chart.draw(dataTable, options);
+      console.log('지역별 차트 그리기 완료');
       
       // 전역 변수에 차트 데이터 저장
       regionChartData = regionData;
@@ -1355,6 +1398,7 @@
         if (chart && dataTable) {
           try {
             chart.draw(dataTable, options);
+            console.log('지역별 차트 다시 그리기 완료');
           } catch (e) {
             console.error('지역별 차트 다시 그리기 오류:', e);
           }
@@ -1362,9 +1406,12 @@
       };
       
       // 차트 크기 조정
-      fixChartDisplay();
+      setTimeout(window.drawRegionChart, 100);
     } catch (error) {
       console.error('지역별 차트 표시 중 오류:', error);
+      if (chartContainer) {
+        chartContainer.innerHTML = '<div class="alert alert-warning">차트 로드 중 오류가 발생했습니다.</div>';
+      }
     }
   }
     
