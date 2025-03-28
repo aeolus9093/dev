@@ -1325,173 +1325,64 @@
     
       
     // 테이블 캡처 기능 설정
+    // 테이블 캡처 기능 설정
     function setupCaptureButton() {
-      console.log('setupCaptureButton 함수 실행됨');
       const captureButton = document.getElementById('capture-table');
       const statsTable = document.getElementById('dispatcher-stats-table');
       
-      console.log('캡처 버튼 요소:', captureButton);
-      console.log('통계 테이블 요소:', statsTable);
-      
-      if (!captureButton || !statsTable) {
-        console.error('캡처 버튼 또는 통계 테이블 요소를 찾을 수 없습니다.');
-        return;
-      }
-      
-      // html2canvas 라이브러리가 로드되었는지 확인
-      console.log('html2canvas 라이브러리 상태:', typeof html2canvas);
-      
-      if (typeof html2canvas !== 'function') {
-        console.log('html2canvas 라이브러리를 동적으로 로드합니다.');
-        // html2canvas 라이브러리 동적 로드
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        script.integrity = 'sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==';
-        script.crossOrigin = 'anonymous';
-        script.referrerPolicy = 'no-referrer';
-        script.onload = function() {
-          console.log('html2canvas 라이브러리가 성공적으로 로드되었습니다.');
-        };
-        script.onerror = function() {
-          console.error('html2canvas 라이브러리 로드 실패');
-        };
-        document.head.appendChild(script);
-        
-        console.log('html2canvas 라이브러리를 동적으로 로드했습니다.');
-      }
-      
-      console.log('캡처 버튼에 클릭 이벤트 리스너 추가');
       captureButton.addEventListener('click', async () => {
-        console.log('캡처 버튼 클릭됨');
         try {
           // 로딩 표시
-          console.log('로딩 표시 생성');
           const loadingDiv = document.createElement('div');
           loadingDiv.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50';
           loadingDiv.style.zIndex = '9999';
           loadingDiv.innerHTML = '<div class="spinner-border text-light" role="status"><span class="visually-hidden">캡처 중...</span></div>';
           document.body.appendChild(loadingDiv);
           
-          // html2canvas가 로드되었는지 다시 확인
-          console.log('html2canvas 라이브러리 상태 (클릭 후):', typeof html2canvas);
-          if (typeof html2canvas !== 'function') {
-            throw new Error('html2canvas 라이브러리가 로드되지 않았습니다.');
-          }
-          
-          // 테이블 스타일 임시 저장
-          console.log('테이블 스타일 임시 저장');
-          const originalStyles = {
-            position: statsTable.style.position,
-            zIndex: statsTable.style.zIndex,
-            transform: statsTable.style.transform
-          };
-          
-          // 캡처를 위한 스타일 적용
-          console.log('캡처를 위한 스타일 적용');
-          statsTable.style.position = 'relative';
-          statsTable.style.zIndex = '1';
-          statsTable.style.transform = 'translateZ(0)';
-          
           // 테이블 캡처
-          console.log('html2canvas 호출 시작');
           const canvas = await html2canvas(statsTable, {
             backgroundColor: '#ffffff',
             scale: 2, // 고해상도로 캡처
-            logging: true, // 디버깅을 위해 로깅 활성화
-            useCORS: true,
-            allowTaint: true, // 외부 이미지 허용
-            foreignObjectRendering: false // 호환성을 위해 비활성화
+            logging: false,
+            useCORS: true
           });
-          console.log('html2canvas 호출 완료, 캔버스 생성됨');
-          
-          // 원래 스타일로 복원
-          console.log('테이블 스타일 복원');
-          statsTable.style.position = originalStyles.position;
-          statsTable.style.zIndex = originalStyles.zIndex;
-          statsTable.style.transform = originalStyles.transform;
           
           // 캔버스를 이미지로 변환
-          console.log('캔버스를 이미지로 변환');
           const imageData = canvas.toDataURL('image/png');
-          console.log('이미지 데이터 생성 완료, 길이:', imageData.length);
           
-          // 클립보드에 복사 시도
+          // 클립보드에 복사하기 위한 임시 요소 생성
+          const tempImg = document.createElement('img');
+          tempImg.src = imageData;
+          
+          // 클립보드에 복사
           try {
-            console.log('클립보드 복사 시도');
-            // 새로운 방식: navigator.clipboard API 사용
-            if (navigator.clipboard && navigator.clipboard.write) {
-              console.log('navigator.clipboard API 사용');
-              const blob = await fetch(imageData).then(res => res.blob());
-              console.log('Blob 생성 완료, 크기:', blob.size);
-              await navigator.clipboard.write([
-                new ClipboardItem({
-                  [blob.type]: blob
-                })
-              ]);
-              console.log('클립보드 복사 성공 (navigator.clipboard)');
-              alert('테이블이 클립보드에 복사되었습니다.');
-            } else {
-              console.log('대체 방법: execCommand 사용');
-              // 대체 방법: execCommand 사용 (구형 브라우저)
-              const tempImg = document.createElement('img');
-              tempImg.src = imageData;
-              
-              const tempContainer = document.createElement('div');
-              tempContainer.appendChild(tempImg);
-              tempContainer.style.position = 'fixed';
-              tempContainer.style.left = '-9999px';
-              document.body.appendChild(tempContainer);
-              
-              // 이미지 선택 및 복사 시도
-              const range = document.createRange();
-              range.selectNode(tempImg);
-              window.getSelection().removeAllRanges();
-              window.getSelection().addRange(range);
-              
-              const success = document.execCommand('copy');
-              console.log('execCommand 복사 결과:', success);
-              window.getSelection().removeAllRanges();
-              document.body.removeChild(tempContainer);
-              
-              if (success) {
-                console.log('클립보드 복사 성공 (execCommand)');
-                alert('테이블이 클립보드에 복사되었습니다.');
-              } else {
-                throw new Error('클립보드 복사 실패');
-              }
-            }
+            // 새로운 ClipboardItem API 사용 (최신 브라우저)
+            const blob = await (await fetch(imageData)).blob();
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                [blob.type]: blob
+              })
+            ]);
+            alert('테이블이 클립보드에 복사되었습니다.');
           } catch (clipboardError) {
+            // 대체 방법: 이미지 다운로드
             console.error('클립보드 복사 실패:', clipboardError);
             
-            // 다운로드 방식으로 대체
-            console.log('다운로드 방식으로 대체');
+            // 다운로드 링크 생성
             const downloadLink = document.createElement('a');
             downloadLink.href = imageData;
             downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
-            document.body.appendChild(downloadLink);
             downloadLink.click();
-            document.body.removeChild(downloadLink);
-            console.log('이미지 다운로드 완료');
             alert('클립보드 복사에 실패했습니다. 이미지가 다운로드됩니다.');
           }
           
           // 로딩 표시 제거
-          console.log('로딩 표시 제거');
           document.body.removeChild(loadingDiv);
         } catch (error) {
           console.error('테이블 캡처 중 오류 발생:', error);
-          alert('테이블 캡처 중 오류가 발생했습니다: ' + error.message);
-          
-          // 로딩 표시가 남아있는 경우 제거
-          console.log('로딩 표시 제거 (오류 발생 시)');
-          const loadingElement = document.querySelector('.position-fixed.bg-dark.bg-opacity-50');
-          if (loadingElement) {
-            document.body.removeChild(loadingElement);
-          }
+          alert('테이블 캡처 중 오류가 발생했습니다.');
         }
       });
-      
-      console.log('setupCaptureButton 함수 설정 완료');
     }
     
     // 전체 요약 통계 표시
