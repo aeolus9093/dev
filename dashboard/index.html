@@ -42,18 +42,32 @@
         height: 300px !important;
         min-height: 300px;
         position: relative;
-        overflow: visible !important;
+        overflow: visible !important; /* 툴팁이 잘리지 않도록 visible 설정 */
       }
       
       /* 차트 내부 요소 강제 크기 조정 */
       .chart-container > div {
         width: 100% !important;
         height: 100% !important;
+        overflow: visible !important; /* 툴팁이 잘리지 않도록 visible 설정 */
       }
       .chart-container svg {
         width: 100% !important;
         height: 100% !important;
-        overflow: visible;
+        overflow: visible !important; /* 툴팁이 잘리지 않도록 visible 설정 */
+      }
+      
+      /* 차트 툴팁 스타일 */
+      .google-visualization-tooltip {
+        z-index: 1000 !important;
+        pointer-events: none !important;
+        background-color: rgba(255, 255, 255, 0.95) !important;
+        border: 1px solid #ccc !important;
+        border-radius: 4px !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+        padding: 8px !important;
+        max-width: 300px !important;
+        overflow: visible !important;
       }
       /* Google 차트 관련 요소 */
       .google-visualization-table-table {
@@ -481,40 +495,40 @@
                     <thead class="text-center">
                       <tr>
                         <th class="sortable" data-sort="dispatcher">
-                          담당자 <i class="fas fa-sort"></i>
+                          담당자 <span class="sort-icon">⇅</span>
                         </th>
                         <th class="sortable" data-sort="workShift">
-                          시프트 <i class="fas fa-sort"></i>
+                          시프트 <span class="sort-icon">⇅</span>
                         </th>
                         <th class="sortable" data-sort="workHours">
-                          WH <i class="fas fa-sort"></i>
+                          WH <span class="sort-icon">⇅</span>
                         </th>
                         <th class="sortable" data-sort="total">
-                          총 건수 <i class="fas fa-sort"></i>
+                          총 건수 <span class="sort-icon">⇅</span>
                         </th>
                         <th class="sortable" cursor="pointer" data-sort="score">
-                          총 점수(i) <i class="fas fa-sort"></i>
+                          총 점수(i) <span class="sort-icon">⇅</span>
                         </th>
                         <th class="sortable" data-sort="operator">
-                          오퍼레이터 배차 <i class="fas fa-sort"></i>
+                          오퍼레이터 배차 <span class="sort-icon">⇅</span>
                         </th>
                         <th class="sortable" data-sort="system">
-                          시스템 배차 <i class="fas fa-sort"></i>
+                          시스템 배차 <span class="sort-icon">⇅</span>
                         </th>
                         <th class="sortable" data-sort="cantProcess">
-                          처리 불가 <i class="fas fa-sort"></i>
+                          처리 불가 <span class="sort-icon">⇅</span>
                         </th>
                         <th class="sortable" data-sort="avgTime">
-                          평균 소요시간 <i class="fas fa-sort"></i>
+                          평균 소요시간 <span class="sort-icon">⇅</span>
                         </th>
                         <th class="sortable" data-sort="goalAchievement">
-                          목표 달성 <i class="fas fa-sort"></i>
+                          목표 달성 <span class="sort-icon">⇅</span>
                         </th>
                         <!-- <th class="sortable" data-sort="normal">
-                          정상 이동 중 <i class="fas fa-sort"></i>
+                          정상 이동 중 <span class="sort-icon">⇅</span>
                         </th> -->
                         <!-- <th class="sortable" data-sort="other">
-                          기타 <i class="fas fa-sort"></i>
+                          기타 <span class="sort-icon">⇅</span>
                         </th> -->
                       </tr>
                     </thead>
@@ -937,7 +951,13 @@
         }
         
         // 근무 시간 셀
-        row.insertCell(2).textContent = s.workHours;
+        const workHoursCell = row.insertCell(2);
+        // 8H인 경우 별 이모지 추가
+        if (s.workHours && s.workHours.toString().includes('8H')) {
+          workHoursCell.innerHTML = s.workHours + ' ⭐';
+        } else {
+          workHoursCell.textContent = s.workHours;
+        }
         
         // 총 건수 셀
         const totalCell = row.insertCell(3);
@@ -977,7 +997,18 @@
         // 오퍼레이터 배차 셀
         const opCell = row.insertCell(5);
         const opPercent = Math.round(s.operatorDispatch/s.total*100);
-        opCell.textContent = `${s.operatorDispatch} (${opPercent}%)`;
+        
+        // 오퍼레이터 배차 비율에 따른 색상 적용
+        const opPercentText = document.createElement('span');
+        if (opPercent < 30) {
+          opPercentText.style.color = '#dc3545'; // 빨간색 (낮음)
+          opPercentText.style.fontWeight = 'bold';
+        } else if (opPercent > 70) {
+          opPercentText.style.color = '#0d6efd'; // 파란색 (높음)
+          opPercentText.style.fontWeight = 'bold';
+        }
+        opPercentText.textContent = `${s.operatorDispatch} (${opPercent}%)`;
+        opCell.appendChild(opPercentText);
         
         // 오퍼레이터 배차 비율에 스파크라인 추가 (막대 그래프)
         const opSparklineContainer = document.createElement('span');
@@ -994,7 +1025,18 @@
         // 시스템 배차 셀
         const sysCell = row.insertCell(6);
         const sysPercent = Math.round(s.systemDispatch/s.total*100);
-        sysCell.textContent = `${s.systemDispatch} (${sysPercent}%)`;
+        
+        // 시스템 배차 비율에 따른 색상 적용
+        const sysPercentText = document.createElement('span');
+        if (sysPercent > 70) {
+          sysPercentText.style.color = '#dc3545'; // 빨간색 (높음)
+          sysPercentText.style.fontWeight = 'bold';
+        } else if (sysPercent < 30) {
+          sysPercentText.style.color = '#198754'; // 초록색 (낮음)
+          sysPercentText.style.fontWeight = 'bold';
+        }
+        sysPercentText.textContent = `${s.systemDispatch} (${sysPercent}%)`;
+        sysCell.appendChild(sysPercentText);
         
         // 시스템 배차 비율에 스파크라인 추가 (막대 그래프)
         const sysSparklineContainer = document.createElement('span');
@@ -1006,7 +1048,7 @@
         sysSparklineContainer.setAttribute('data-sparkline-type', 'bar');
         sysSparklineContainer.setAttribute('data-sparkline-width', '40');
         sysSparklineContainer.setAttribute('data-sparkline-height', '20');
-        sysSparklineContainer.setAttribute('data-sparkline-bar-color', '#6c757d');
+        sysSparklineContainer.setAttribute('data-sparkline-bar-color', sysPercent > 50 ? '#dc3545' : '#6c757d');
         
         // 처리 불가 셀
         row.insertCell(7).textContent = s.cantProcess;
@@ -1170,13 +1212,13 @@
         
         // 초기 상태의 정렬 표시
         if (header.getAttribute('data-sort') === currentSort.column) {
-          const icon = header.querySelector('i');
+          const icon = header.querySelector('span.sort-icon');
           if (currentSort.direction === 'asc') {
-            icon.className = 'fas fa-sort-up';
+            icon.textContent = '⇧';
           } else if (currentSort.direction === 'desc') {
-            icon.className = 'fas fa-sort-down';
+            icon.textContent = '⇩';
           } else {
-            icon.className = 'fas fa-sort';
+            icon.textContent = '⇅';
           }
         }
         
@@ -1207,20 +1249,20 @@
           
           // 모든 헤더의 아이콘 초기화
           headers.forEach(h => {
-            h.querySelector('i').className = 'fas fa-sort';
+            h.querySelector('span.sort-icon').textContent = '⇅';
           });
           
           // 선택된 헤더의 아이콘 업데이트
-          const icon = header.querySelector('i');
+          const icon = header.querySelector('span.sort-icon');
           if (currentSort.direction === 'asc') {
             // 오름차순
-            icon.className = 'fas fa-sort-up';
+            icon.textContent = '⇧';
           } else if (currentSort.direction === 'desc') {
             // 내림차순
-            icon.className = 'fas fa-sort-down';
+            icon.textContent = '⇩';
           } else {
             // 정렬 없음
-            icon.className = 'fas fa-sort';
+            icon.textContent = '⇅';
           }
           
           // 테이블 다시 렌더링
@@ -1560,7 +1602,9 @@
             }
           },
           tooltip: {
-            showColorCode: true
+            showColorCode: true,
+            isHtml: true,
+            trigger: 'selection'
           },
           pieSliceText: 'value',
           width: '100%',
@@ -1616,23 +1660,34 @@
       if (typeof window.drawDispatcherChart === 'function') window.drawDispatcherChart();
     }
     
-    // 차트 컨테이너를 전체 너비로 설정하는 함수
+    // 모든 차트 컨테이너에 공통 스타일 적용
     function setChartContainersFullWidth() {
       const chartContainers = document.querySelectorAll('.chart-container');
+      
       chartContainers.forEach(container => {
-        // 명시적 크기 설정
+        // 차트 컨테이너 스타일 설정
         container.style.width = '100%';
         container.style.height = '300px';
-        container.style.minHeight = '300px';
         container.style.position = 'relative';
         container.style.overflow = 'visible';
         
-        // 내부 요소도 100%로 설정
-        const innerElements = container.querySelectorAll('div');
-        innerElements.forEach(el => {
-          el.style.width = '100%';
-          el.style.height = '100%';
+        // 차트가 로드된 후 내부 요소에도 스타일 적용
+        const observer = new MutationObserver((mutations) => {
+          const innerElements = container.querySelectorAll('div');
+          innerElements.forEach(el => {
+            el.style.width = '100%';
+            el.style.height = '100%';
+            el.style.overflow = 'visible';
+          });
+          
+          // SVG 요소에도 스타일 적용
+          const svgElements = container.querySelectorAll('svg');
+          svgElements.forEach(svg => {
+            svg.style.overflow = 'visible';
+          });
         });
+        
+        observer.observe(container, { childList: true, subtree: true });
       });
     }
     
@@ -1651,43 +1706,21 @@
     
     // 문서 로드 완료 시 이벤트 리스너 설정
     document.addEventListener('DOMContentLoaded', function() {
-      // 새로고침 버튼 클릭 이벤트
+      // 데이터 로드
+      loadData();
+      
+      // 차트 초기화
+      initializeCharts();
+      
+      // 새로고침 버튼 이벤트 리스너
       document.getElementById('refreshButton').addEventListener('click', function() {
-        loadData(false, true); // 작은 로딩 표시만 보이게 새로고침, 근무자 실적 데이터 강제 새로고침
-      });
-      
-      // 모든 차트 컨테이너 최대 너비 설정
-      setChartContainersFullWidth();
-      
-      // 창 크기 변경 시 차트 컨테이너 크기 조정
-      window.addEventListener('resize', function() {
-        setChartContainersFullWidth();
-        
-        // 차트 다시 그리기
-        if (typeof window.drawResultChart === 'function') window.drawResultChart();
-        if (typeof window.drawRegionChart === 'function') window.drawRegionChart();
-        if (typeof window.drawHourlyChart === 'function') window.drawHourlyChart();
-        if (typeof window.drawDispatcherChart === 'function') window.drawDispatcherChart();
-      });
-      
-      // Font Awesome 스타일 추가
-      const fontAwesome = document.createElement('link');
-      fontAwesome.rel = 'stylesheet';
-      fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css';
-      document.head.appendChild(fontAwesome);
-      
-      // 초기화 함수
-      function init() {
-        // 데이터 로드
         loadData();
-        
-        // 이벤트 리스너 설정
-        setupSortListeners();
-        setupFilterListeners();
-        setupCaptureButton();
-      }
+      });
       
-      init();
+      // 차트 표시 수정 (지연 적용)
+      setTimeout(function() {
+        fixChartDisplay();
+      }, 1000);
     });
     
     // 페이지 완전 로드 후 차트 다시 그리기
@@ -1698,6 +1731,49 @@
         fixChartDisplay();
       }, 1000);
     });
+    
+    // 차트 초기화 후 호출되는 함수
+    function initializeCharts() {
+      // 차트 컨테이너 크기 설정
+      setChartContainersFullWidth();
+      
+      // 차트 툴팁 스타일 개선
+      const styleElement = document.createElement('style');
+      styleElement.textContent = `
+        .google-visualization-tooltip {
+          z-index: 1000 !important;
+          pointer-events: none !important;
+          background-color: rgba(255, 255, 255, 0.95) !important;
+          border: 1px solid #ccc !important;
+          border-radius: 4px !important;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+          padding: 8px !important;
+          max-width: 300px !important;
+          overflow: visible !important;
+        }
+        
+        .chart-container {
+          overflow: visible !important;
+        }
+        
+        .chart-container > div {
+          overflow: visible !important;
+        }
+        
+        .chart-container svg {
+          overflow: visible !important;
+        }
+      `;
+      document.head.appendChild(styleElement);
+      
+      // 차트 리사이즈 이벤트 처리
+      window.addEventListener('resize', function() {
+        if (typeof window.drawDispatcherChart === 'function') window.drawDispatcherChart();
+        if (typeof window.drawHourlyChart === 'function') window.drawHourlyChart();
+        if (typeof window.drawDispatchResultChart === 'function') window.drawDispatchResultChart();
+        if (typeof window.drawRegionChart === 'function') window.drawRegionChart();
+      });
+    }
   </script>
   </body>
 </html>
