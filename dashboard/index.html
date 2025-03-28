@@ -551,7 +551,10 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- html2canvas 라이브러리 추가 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" 
+            integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" 
+            crossorigin="anonymous" 
+            referrerpolicy="no-referrer"></script>
     
   <!-- 차트 및 데이터 처리 스크립트 -->
   <script>
@@ -968,7 +971,6 @@
         
         // 총 건수에 스파크라인 추가 (최근 5개 데이터 샘플 - 임의 데이터)
         if (s.timeSamples && s.timeSamples.length > 0) {
-          // 소요시간 데이터 샘플에서 최대 5개 추출하여 스파크라인 생성
           const sparklineData = s.timeSamples.slice(0, Math.min(5, s.timeSamples.length));
           const sparklineContainer = document.createElement('span');
           sparklineContainer.className = 'sparkline-container';
