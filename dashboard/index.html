@@ -832,6 +832,9 @@
       
       // 필터 이벤트 리스너 설정
       setupFilterListeners();
+      
+      // 스파크라인 초기화
+      initSparklines();
     }
     
     // 데이터 필터링 및 정렬
@@ -1741,6 +1744,14 @@
         row.insertCell(4).textContent = `${performer.operatorDispatch} (${Math.round(performer.operatorDispatch/performer.total*100)}%)`;
         row.insertCell(5).textContent = `${Math.round(performer.avgTime)} 초`;
       });
+      
+      // 스파크라인 초기화 - 약간의 지연 추가
+      setTimeout(() => {
+        // 콘솔에 로그 추가
+        console.log("고성과자 스파크라인 초기화 시작");
+        initSparklines();
+        console.log("고성과자 스파크라인 초기화 완료");
+      }, 100);
     }
     
     // 배차 결과 통계 표시
@@ -1932,10 +1943,10 @@
         clearInterval(refreshTimer);
       }
       
-      // 5분(300000밀리초)마다 데이터 새로고침 (로딩 스피너 없이)
+      // 1분(60000밀리초)마다 데이터 새로고침 (로딩 스피너 없이)
       refreshTimer = setInterval(() => {
         loadData(false);
-      }, 300000);
+      }, 60000);
     }
     
     // 문서 로드 완료 시 이벤트 리스너 설정
