@@ -1341,12 +1341,10 @@
           // 캡처 전 스파크라인 색상 강제 적용
           const sparklineCanvases = statsTable.querySelectorAll('canvas');
           sparklineCanvases.forEach(canvas => {
-            // 캔버스 컨텍스트 가져오기
-            const ctx = canvas.getContext('2d');
             // 캔버스 데이터 저장
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const imageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
             // 캔버스 다시 그리기 (색상 강제 적용)
-            ctx.putImageData(imageData, 0, 0);
+            canvas.getContext('2d').putImageData(imageData, 0, 0);
           });
           
           // 테이블 캡처
@@ -1382,16 +1380,67 @@
           
           // 클립보드에 복사
           try {
-            // 원래 작동하던 방식으로 복원
-            const blob = await (await fetch(imageData)).blob();
-            await navigator.clipboard.write([
-              new ClipboardItem({
-                [blob.type]: blob
-              })
-            ]);
-            alert('테이블이 클립보드에 복사되었습니다.');
+            // 새로운 방식으로 클립보드에 복사 시도
+            const img = new Image();
+            img.src = imageData;
+            
+            // 이미지가 로드될 때까지 기다림
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              // 이미 캐시된 경우를 대비해 타임아웃 설정
+              setTimeout(resolve, 200);
+            });
+            
+            // 임시 캔버스 생성
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            
+            // 이미지를 캔버스에 그림
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(img, 0, 0);
+            
+            // 클립보드에 복사 시도 (첫 번째 방법)
+            tempCanvas.toBlob(async (blob) => {
+              try {
+                await navigator.clipboard.write([
+                  new ClipboardItem({
+                    [blob.type]: blob
+                  })
+                ]);
+                console.log('클립보드 복사 성공 (방법 1)');
+                alert('테이블이 클립보드에 복사되었습니다.');
+              } catch (err) {
+                console.error('클립보드 복사 방법 1 실패:', err);
+                
+                try {
+                  // 두 번째 방법: 데이터 URL 직접 복사
+                  const clipboardData = new ClipboardItem({
+                    'image/png': blob
+                  });
+                  await navigator.clipboard.write([clipboardData]);
+                  console.log('클립보드 복사 성공 (방법 2)');
+                  alert('테이블이 클립보드에 복사되었습니다.');
+                } catch (err2) {
+                  console.error('클립보드 복사 방법 2 실패:', err2);
+                  
+                  // 세 번째 방법: 이미지 다운로드
+                  const downloadLink = document.createElement('a');
+                  downloadLink.href = imageData;
+                  downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
+                  document.body.appendChild(downloadLink);
+                  downloadLink.click();
+                  document.body.removeChild(downloadLink);
+                  alert('클립보드 복사에 실패했습니다. 이미지가 다운로드됩니다.');
+                }
+              }
+              
+              // 로딩 표시 제거
+              document.body.removeChild(loadingDiv);
+            }, 'image/png');
           } catch (clipboardError) {
-            console.error('클립보드 복사 실패:', clipboardError);
+            console.error('클립보드 복사 전체 실패:', clipboardError);
             
             // 대체 방법: 이미지 다운로드
             const downloadLink = document.createElement('a');
@@ -1401,10 +1450,10 @@
             downloadLink.click();
             document.body.removeChild(downloadLink);
             alert('클립보드 복사에 실패했습니다. 이미지가 다운로드됩니다.');
+            
+            // 로딩 표시 제거
+            document.body.removeChild(loadingDiv);
           }
-          
-          // 로딩 표시 제거
-          document.body.removeChild(loadingDiv);
         } catch (error) {
           console.error('테이블 캡처 중 오류 발생:', error);
           alert('테이블 캡처 중 오류가 발생했습니다: ' + error.message);
