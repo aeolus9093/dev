@@ -516,6 +516,13 @@
             </div>
           </div>
         </div>
+        
+        <!-- 배차 결과 통계 테이블 -->
+        <div class="row">
+          <div class="col-12 mb-4">
+            <div id="dispatch-result-stats"></div>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -721,14 +728,24 @@
           displayPerformers(data.performers);
         }
         
-        // 정렬 이벤트 리스너 설정
-        setupSortListeners();
+        // 배차 결과 통계 표시
+        if (data.dispatchResultStats) {
+          displayDispatchResultStats(data.dispatchResultStats);
+        }
+        
+        // 지역별 통계 차트 표시
+        if (data.regionStats) {
+          displayRegionChart(data.regionStats);
+        }
+        
+        // 필터 이벤트 리스너 설정
+        setupFilterListener();
         
         // 테이블 캡처 버튼 설정
         setupCaptureButton();
         
-        // 필터 이벤트 리스너 설정
-        setupFilterListener();
+        // 차트 크기 조정
+        setTimeout(fixChartDisplay, 100);
         
         console.log('데이터 처리 완료');
       } catch (error) {
@@ -1282,7 +1299,7 @@
 
   // 지역별 차트 표시
   function displayRegionChart(regionData) {
-    if (!regionData || regionData.length <= 1) return;
+    if (!regionData || regionData.length === 0) return;
     
     const chartContainer = document.getElementById('region-chart');
     if (!chartContainer) return;
@@ -1293,10 +1310,10 @@
       dataTable.addColumn('string', '지역');
       dataTable.addColumn('number', '건수');
       
-      // 행 추가 (첫 번째 행은 헤더)
-      for (let i = 1; i < regionData.length; i++) {
-        dataTable.addRow([regionData[i][0], regionData[i][1]]);
-      }
+      // 데이터 추가
+      regionData.forEach(item => {
+        dataTable.addRow([item.region, item.count]);
+      });
       
       // 차트 옵션
       const options = {
@@ -1309,91 +1326,25 @@
           height: '75%'
         },
         legend: {position: 'right'},
-        colors: ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#8064A2', '#4E9A06'],
         width: '100%',
-        height: '100%',
-        tooltip: { isHtml: true }
+        height: 300
       };
       
       // 차트 그리기
       const chart = new google.visualization.PieChart(chartContainer);
       chart.draw(dataTable, options);
       
-      // 전역 함수 정의
+      // 전역 변수에 차트 데이터 저장
+      regionChartData = regionData;
+      
+      // 차트 다시 그리는 함수 정의
       window.drawRegionChart = function() {
-        try {
-          chart.draw(dataTable, options);
-        } catch(e) {
-          console.error("지역별 차트 그리기 오류:", e);
-        }
+        chart.draw(dataTable, options);
       };
-    } catch (e) {
-      console.error("지역별 차트 생성 오류:", e);
-      if (chartContainer) {
-        chartContainer.innerHTML = '<div class="alert alert-warning">차트 로드 중 오류가 발생했습니다.</div>';
-      }
+    } catch (error) {
+      console.error('지역별 차트 표시 중 오류:', error);
     }
   }
-    
-    // 테이블 캡처 기능 설정
-    function setupCaptureButton() {
-      const captureButton = document.getElementById('capture-table');
-      const statsTable = document.getElementById('dispatcher-stats-table');
-      
-      captureButton.addEventListener('click', async () => {
-        try {
-          // 로딩 표시
-          const loadingDiv = document.createElement('div');
-          loadingDiv.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50';
-          loadingDiv.style.zIndex = '9999';
-          loadingDiv.innerHTML = '<div class="spinner-border text-light" role="status"><span class="visually-hidden">캡처 중...</span></div>';
-          document.body.appendChild(loadingDiv);
-          
-          // 테이블 캡처
-          const canvas = await html2canvas(statsTable, {
-            backgroundColor: '#ffffff',
-            scale: 2, // 고해상도로 캡처
-            logging: false,
-            useCORS: true
-          });
-          
-          // 캔버스를 이미지로 변환
-          const imageData = canvas.toDataURL('image/png');
-          
-          // 클립보드에 복사하기 위한 임시 요소 생성
-          const tempImg = document.createElement('img');
-          tempImg.src = imageData;
-          
-          // 클립보드에 복사
-          try {
-            // 새로운 ClipboardItem API 사용 (최신 브라우저)
-            const blob = await (await fetch(imageData)).blob();
-            await navigator.clipboard.write([
-              new ClipboardItem({
-                [blob.type]: blob
-              })
-            ]);
-            alert('테이블이 클립보드에 복사되었습니다.');
-          } catch (clipboardError) {
-            // 대체 방법: 이미지 다운로드
-            console.error('클립보드 복사 실패:', clipboardError);
-            
-            // 다운로드 링크 생성
-            const downloadLink = document.createElement('a');
-            downloadLink.href = imageData;
-            downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
-            downloadLink.click();
-            alert('클립보드 복사에 실패했습니다. 이미지가 다운로드됩니다.');
-          }
-          
-          // 로딩 표시 제거
-          document.body.removeChild(loadingDiv);
-        } catch (error) {
-          console.error('테이블 캡처 중 오류 발생:', error);
-          alert('테이블 캡처 중 오류가 발생했습니다.');
-        }
-      });
-    }
     
     // 전체 요약 통계 표시
     function displaySummary(summary) {
@@ -1618,6 +1569,61 @@
       }
     }
     
+    // 배차 결과 통계 표시 함수
+    function displayDispatchResultStats(resultStats) {
+      if (!resultStats || resultStats.length === 0) return;
+      
+      const resultStatsContainer = document.getElementById('dispatch-result-stats');
+      if (!resultStatsContainer) return;
+      
+      try {
+        // 테이블 생성
+        let html = `
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">배차 결과 분포</h5>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm table-bordered">
+                <thead>
+                  <tr>
+                    <th>결과 유형</th>
+                    <th>건수</th>
+                    <th>비율</th>
+                  </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        // 총 건수 계산
+        const totalCount = resultStats.reduce((sum, item) => sum + item.count, 0);
+        
+        // 각 결과 유형별 행 추가
+        resultStats.forEach(item => {
+          const percentage = ((item.count / totalCount) * 100).toFixed(1);
+          html += `
+            <tr>
+              <td>${item.result}</td>
+              <td>${item.count}</td>
+              <td>${percentage}%</td>
+            </tr>
+          `;
+        });
+        
+        html += `
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+        
+        // HTML 삽입
+        resultStatsContainer.innerHTML = html;
+      } catch (error) {
+        console.error('배차 결과 통계 표시 중 오류:', error);
+      }
+    }
+    
     // 오류 메시지 표시 함수
     function showError(message) {
       console.error(message);
@@ -1650,5 +1656,69 @@
       
       // 로딩 표시 숨기기
       hideLoading();
+    }
+  </script>
+
+  <script>
+    // 테이블 캡처 기능 설정
+    function setupCaptureButton() {
+      const captureButton = document.getElementById('capture-table');
+      const statsTable = document.getElementById('dispatcher-stats-table');
+      
+      if (!captureButton || !statsTable) return;
+      
+      captureButton.addEventListener('click', async () => {
+        try {
+          // 로딩 표시
+          const loadingDiv = document.createElement('div');
+          loadingDiv.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50';
+          loadingDiv.style.zIndex = '9999';
+          loadingDiv.innerHTML = '<div class="spinner-border text-light" role="status"><span class="visually-hidden">캡처 중...</span></div>';
+          document.body.appendChild(loadingDiv);
+          
+          // 테이블 캡처
+          const canvas = await html2canvas(statsTable, {
+            backgroundColor: '#ffffff',
+            scale: 2, // 고해상도로 캡처
+            logging: false,
+            useCORS: true
+          });
+          
+          // 캔버스를 이미지로 변환
+          const imageData = canvas.toDataURL('image/png');
+          
+          // 클립보드에 복사하기 위한 임시 요소 생성
+          const tempImg = document.createElement('img');
+          tempImg.src = imageData;
+          
+          // 클립보드에 복사
+          try {
+            // 새로운 ClipboardItem API 사용 (최신 브라우저)
+            const blob = await (await fetch(imageData)).blob();
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                [blob.type]: blob
+              })
+            ]);
+            alert('테이블이 클립보드에 복사되었습니다.');
+          } catch (clipboardError) {
+            // 대체 방법: 이미지 다운로드
+            console.error('클립보드 복사 실패:', clipboardError);
+            
+            // 다운로드 링크 생성
+            const downloadLink = document.createElement('a');
+            downloadLink.href = imageData;
+            downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
+            downloadLink.click();
+            alert('클립보드 복사에 실패했습니다. 이미지가 다운로드됩니다.');
+          }
+          
+          // 로딩 표시 제거
+          document.body.removeChild(loadingDiv);
+        } catch (error) {
+          console.error('테이블 캡처 중 오류 발생:', error);
+          alert('테이블 캡처 중 오류가 발생했습니다.');
+        }
+      });
     }
   </script>

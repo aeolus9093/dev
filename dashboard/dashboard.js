@@ -590,6 +590,36 @@ function doGet() {
     return sortedResultStats;
   }
 
+  // 지역별 통계
+  function getRegionStats() {
+    const { data } = getDispatchData();
+    
+    // 지역 열 인덱스
+    const regionIdx = 13;
+    
+    // 지역별 집계
+    const regionStats = {};
+    
+    data.forEach(row => {
+      const region = row[regionIdx];
+      
+      // 지역이 통계에 없으면 초기화
+      if (!regionStats[region]) {
+        regionStats[region] = 0;
+      }
+      
+      // 해당 지역 건수 증가
+      regionStats[region]++;
+    });
+    
+    // 건수 기준 내림차순 정렬된 배열로 변환
+    const sortedRegionStats = Object.keys(regionStats)
+      .map(region => ({ region: region, count: regionStats[region] }))
+      .sort((a, b) => b.count - a.count);
+    
+    return sortedRegionStats;
+  }
+
   // 서버에서 데이터 로드
   async function loadData(showSpinner = true, forceWorkPerformanceRefresh = false) {
     if (isLoading) return; // 이미 로드 중이면 중복 요청 방지
@@ -657,6 +687,34 @@ function doGet() {
           .getTopPerformers();
       });
       
+      // 배차 결과 통계 가져오기
+      const getResultStatsData = new Promise((resolveResult) => {
+        google.script.run
+          .withSuccessHandler((data) => {
+            console.log('배차 결과 통계 로드 성공');
+            resolveResult(data);
+          })
+          .withFailureHandler((error) => {
+            console.error('배차 결과 통계 로드 오류:', error);
+            resolveResult(null);
+          })
+          .getDispatchResultStats();
+      });
+      
+      // 지역별 통계 가져오기
+      const getRegionData = new Promise((resolveRegion) => {
+        google.script.run
+          .withSuccessHandler((data) => {
+            console.log('지역별 통계 로드 성공');
+            resolveRegion(data);
+          })
+          .withFailureHandler((error) => {
+            console.error('지역별 통계 로드 오류:', error);
+            resolveRegion(null);
+          })
+          .getRegionStats();
+      });
+      
       // 근무자 실적 데이터 로드
       const loadWorkPerformanceData = new Promise((resolve) => {
         google.script.run
@@ -674,14 +732,16 @@ function doGet() {
       });
       
       // 모든 데이터 로드 완료 대기
-      Promise.all([getSummaryData, getDispatcherData, getHourlyData, getPerformersData, loadWorkPerformanceData])
-        .then(([summary, dispatcherStats, hourlyStats, performers]) => {
+      Promise.all([getSummaryData, getDispatcherData, getHourlyData, getPerformersData, getResultStatsData, getRegionData, loadWorkPerformanceData])
+        .then(([summary, dispatcherStats, hourlyStats, performers, dispatchResultStats, regionStats]) => {
           // 모든 데이터를 하나의 객체로 통합
           const dashboardData = {
             summary: summary,
             dispatcherStats: dispatcherStats,
             hourlyStats: hourlyStats,
-            performers: performers
+            performers: performers,
+            dispatchResultStats: dispatchResultStats,
+            regionStats: regionStats
           };
           
           console.log('모든 데이터 로드 완료');
