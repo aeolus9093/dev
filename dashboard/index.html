@@ -388,11 +388,20 @@
         <div class="row">
           <div class="col-12 mb-4">
             <div class="card">
-              <div class="card-header d-flex justify-content-between align-items-center">
-                <div>담당자별 상세 통계</div>
-                <div class="input-group input-group-sm" style="width: 250px;">
-                  <input type="text" id="dispatcher-filter" class="form-control" placeholder="담당자 검색...">
-                  <button class="btn btn-outline-secondary" type="button" id="clear-filter">X</button>
+              <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">담당자별 상세 통계</h6>
+                <div>
+                  <div class="input-group">
+                    <input type="text" id="dispatcher-filter" class="form-control" placeholder="담당자 검색...">
+                    <div class="input-group-append">
+                      <button id="clear-filter" class="btn btn-outline-secondary" type="button">
+                        <i class="fas fa-times"></i>
+                      </button>
+                      <button id="capture-table" class="btn btn-outline-primary" type="button" title="테이블 캡처">
+                        <i class="fas fa-camera"></i>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="card-body">
@@ -452,6 +461,9 @@
     
     <!-- 부트스트랩 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- html2canvas 라이브러리 추가 -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     
   <!-- 차트 및 데이터 처리 스크립트 -->
   <script>
@@ -809,25 +821,31 @@
           let shiftText = s.workShift.toString();
           let shiftSpan = document.createElement('span');
           
-          // 시프트 배경색 및 글자색 설정
-          if (shiftText.includes('OP')) {
-            shiftSpan.className = 'shift-op';
-          } else if (shiftText.includes('MID')) {
-            shiftSpan.className = 'shift-mid';
-          } else if (shiftText.includes('CL')) {
-            shiftSpan.className = 'shift-cl';
-          } else if (shiftText.includes('NT')) {
-            shiftSpan.className = 'shift-nt';
-          } else if (shiftText.includes('M-4') || shiftText.includes('C-4')) {
+          // M-4&C-4 시프트 처리 (최우선 적용)
+          if (shiftText.includes('M-4&C') || shiftText.includes('M-4 & C') || shiftText.includes('M-4&C-4')) {
             shiftSpan.className = 'shift-mc';
-          }
-          
-          // -4가 포함된 경우 -4 부분만 노란색으로 변경
-          if (shiftText.includes('-4')) {
-            const parts = shiftText.split('-4');
-            shiftSpan.innerHTML = parts[0] + '<span class="shift-4">-4</span>' + (parts[1] || '');
-          } else {
-            shiftSpan.textContent = shiftText;
+            shiftSpan.textContent = shiftText; // 전체 텍스트를 그대로 표시
+          } 
+          // 다른 시프트 처리
+          else {
+            // 시프트 배경색 및 글자색 설정
+            if (shiftText.includes('OP')) {
+              shiftSpan.className = 'shift-op';
+            } else if (shiftText.includes('MID')) {
+              shiftSpan.className = 'shift-mid';
+            } else if (shiftText.includes('CL')) {
+              shiftSpan.className = 'shift-cl';
+            } else if (shiftText.includes('NT')) {
+              shiftSpan.className = 'shift-nt';
+            }
+            
+            // -4가 포함된 경우 -4 부분만 노란색으로 변경
+            if (shiftText.includes('-4')) {
+              const parts = shiftText.split('-4');
+              shiftSpan.innerHTML = parts[0] + '<span class="shift-4">-4</span>' + (parts[1] || '');
+            } else {
+              shiftSpan.textContent = shiftText;
+            }
           }
           
           shiftCell.appendChild(shiftSpan);
@@ -926,6 +944,66 @@
         filterInput.value = '';
         filterText = '';
         renderDispatcherTable();
+      });
+    }
+    
+    // 테이블 캡처 기능 설정
+    function setupCaptureButton() {
+      const captureButton = document.getElementById('capture-table');
+      const statsTable = document.getElementById('dispatcher-stats-table');
+      
+      captureButton.addEventListener('click', async () => {
+        try {
+          // 로딩 표시
+          const loadingDiv = document.createElement('div');
+          loadingDiv.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50';
+          loadingDiv.style.zIndex = '9999';
+          loadingDiv.innerHTML = '<div class="spinner-border text-light" role="status"><span class="visually-hidden">캡처 중...</span></div>';
+          document.body.appendChild(loadingDiv);
+          
+          // 테이블 캡처
+          const canvas = await html2canvas(statsTable, {
+            backgroundColor: '#ffffff',
+            scale: 2, // 고해상도로 캡처
+            logging: false,
+            useCORS: true
+          });
+          
+          // 캔버스를 이미지로 변환
+          const imageData = canvas.toDataURL('image/png');
+          
+          // 클립보드에 복사하기 위한 임시 요소 생성
+          const tempImg = document.createElement('img');
+          tempImg.src = imageData;
+          
+          // 클립보드에 복사
+          try {
+            // 새로운 ClipboardItem API 사용 (최신 브라우저)
+            const blob = await (await fetch(imageData)).blob();
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                [blob.type]: blob
+              })
+            ]);
+            alert('테이블이 클립보드에 복사되었습니다.');
+          } catch (clipboardError) {
+            // 대체 방법: 이미지 다운로드
+            console.error('클립보드 복사 실패:', clipboardError);
+            
+            // 다운로드 링크 생성
+            const downloadLink = document.createElement('a');
+            downloadLink.href = imageData;
+            downloadLink.download = '담당자별_상세_통계_' + new Date().toISOString().slice(0, 10) + '.png';
+            downloadLink.click();
+            alert('클립보드 복사에 실패했습니다. 이미지가 다운로드됩니다.');
+          }
+          
+          // 로딩 표시 제거
+          document.body.removeChild(loadingDiv);
+        } catch (error) {
+          console.error('테이블 캡처 중 오류 발생:', error);
+          alert('테이블 캡처 중 오류가 발생했습니다.');
+        }
       });
     }
     
@@ -1298,6 +1376,19 @@
       fontAwesome.rel = 'stylesheet';
       fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css';
       document.head.appendChild(fontAwesome);
+      
+      // 초기화 함수
+      function init() {
+        // 데이터 로드
+        loadData();
+        
+        // 이벤트 리스너 설정
+        setupSortListeners();
+        setupFilterListeners();
+        setupCaptureButton();
+      }
+      
+      init();
     });
     
     // 페이지 완전 로드 후 차트 다시 그리기
