@@ -11,7 +11,8 @@ function doGet() {
     .evaluate()
     .setTitle('배차 대시보드')
     .setFaviconUrl('https://ssl.gstatic.com/docs/script/images/favicon.ico')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 // HTML 파일에 포함시킬 JavaScript 및 CSS 파일을 가져오는 함수
