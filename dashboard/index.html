@@ -537,6 +537,62 @@
     google.charts.load('current', {'packages':['corechart', 'bar', 'table']});
     google.charts.setOnLoadCallback(initCharts);
     
+    // 전역 변수
+    let dispatcherStatsData = {};
+    let workPerformanceData = null;
+    let currentSort = { column: 'total', direction: 'desc', clickCount: 0 };
+    let filterText = '';
+    let isLoading = false;
+    let chartData = {
+      hourly: [],
+      regions: [],
+      summary: null
+    };
+    
+    // 로딩 표시 함수
+    function showLoading() {
+      const loadingElement = document.getElementById('loading');
+      if (loadingElement) {
+        loadingElement.style.opacity = '1';
+        loadingElement.style.display = 'flex';
+      }
+      
+      const dashboardContent = document.getElementById('dashboard-content');
+      if (dashboardContent) {
+        dashboardContent.style.opacity = '0';
+        dashboardContent.style.display = 'none';
+      }
+    }
+    
+    // 로딩 숨김 함수
+    function hideLoading() {
+      const loadingElement = document.getElementById('loading');
+      if (loadingElement) {
+        loadingElement.style.opacity = '0';
+        setTimeout(() => {
+          loadingElement.style.display = 'none';
+        }, 500);
+      }
+      
+      const dashboardContent = document.getElementById('dashboard-content');
+      if (dashboardContent) {
+        dashboardContent.style.display = 'block';
+        setTimeout(() => {
+          dashboardContent.style.opacity = '1';
+        }, 50);
+      }
+      
+      // 차트 크기 조정 및 다시 그리기
+      if (typeof fixChartDisplay === 'function') {
+        fixChartDisplay();
+      }
+      
+      // 자동 새로고침 설정
+      if (typeof setupAutoRefresh === 'function') {
+        setupAutoRefresh();
+      }
+    }
+    
     // 차트 초기화
     function initCharts() {
       // 데이터 로드 시작
@@ -544,22 +600,7 @@
     }
     
     // 데이터 새로고침 타이머
-    let refreshTimer;
-    
-    // 데이터 로드 중 상태 추적
-    let isLoading = false;
-    
-    // 차트 데이터 전역 저장
-    let chartData = {
-      dispatcherStats: null,
-      summary: null,
-      hourlyStats: null,
-      resultStats: null,
-      performers: null
-    };
-    
-    // 근무자 실적 데이터 전역 저장
-    let workPerformanceData = null;
+    let refreshTimer = null;
     
     // 서버에서 데이터 로드
     async function loadData(showSpinner = true, forceWorkPerformanceRefresh = false) {
@@ -618,38 +659,7 @@
       }
     }
     
-    // 로딩 표시 숨기기 함수
-    function hideLoading(wasSpinner) {
-      if (wasSpinner) {
-        document.getElementById('loading').style.opacity = '0';
-        setTimeout(() => {
-          document.getElementById('loading').style.display = 'none';
-        }, 500);
-      } else {
-        // 작은 로딩 표시기 숨기기
-        const miniLoaders = document.querySelectorAll('.mini-loader');
-        miniLoaders.forEach(loader => {
-          loader.style.display = 'none';
-        });
-      }
-      
-      // 대시보드 컨텐츠 표시
-      document.getElementById('dashboard-content').style.display = 'block';
-      setTimeout(() => {
-        document.getElementById('dashboard-content').style.opacity = '1';
-      }, 10);
-      
-      // 차트 크기 조정 및 다시 그리기
-      fixChartDisplay();
-      
-      // 자동 새로고침 설정
-      setupAutoRefresh();
-    }
-    
     // 담당자별 통계를 저장할 전역 변수
-    let dispatcherStatsData = {};
-    let currentSort = { column: 'total', direction: 'desc', clickCount: 0 };
-    let filterText = '';
     
     // 담당자별 통계 표시
     function displayDispatcherStats(stats) {
