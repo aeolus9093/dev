@@ -174,7 +174,7 @@ function getDispatcherStats() {
 function getWorkPerformanceData() {
   try {
     // 근무자 실적 스프레드시트 URL (하드코딩)
-    const workPerformanceUrl = "여기에 스프레드시트 URL을 입력하세요"; // 이 부분을 실제 URL로 변경하세요
+    const workPerformanceUrl = "https://docs.google.com/spreadsheets/d/19m-trjtglnJPiyGe88T66jS-jrGYAF22YYnee1RtYX8/edit?pli=1&gid=1560284614#gid=1560284614"; // 이 부분을 실제 URL로 변경하세요
     
     let ss;
     

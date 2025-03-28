@@ -4,15 +4,12 @@
   <head>
     <base target="_top">
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://*.googleusercontent.com; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; script-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self' https://*.googleusercontent.com https://*.google.com">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.googleusercontent.com; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; script-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self' https://*.googleusercontent.com https://*.google.com">
     <title>배차 대시보드</title>
     <!-- Google Charts 라이브러리 로드 -->
     <script src="https://www.gstatic.com/charts/loader.js"></script>
     <!-- 부트스트랩 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- jquery-sparkline 라이브러리 추가 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.min.js"></script>
     <style>
       body {
         font-family: 'Noto Sans KR', Arial, sans-serif;
@@ -264,6 +261,29 @@
         display: inline-block;
         margin-left: 10px;
         vertical-align: middle;
+      }
+      
+      /* 스파크라인 캔버스 스타일 */
+      .sparkline-canvas {
+        display: inline-block;
+        vertical-align: middle;
+      }
+      
+      /* 바 스파크라인 스타일 */
+      .bar-sparkline {
+        display: inline-block;
+        width: 40px;
+        height: 20px;
+        margin-left: 10px;
+        vertical-align: middle;
+        background-color: #e9ecef;
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      
+      .bar-sparkline-fill {
+        height: 100%;
+        background-color: #0d6efd;
       }
     </style>
   </head>
@@ -1040,34 +1060,105 @@
     
     // 스파크라인 초기화 함수
     function initSparklines() {
-      // 모든 스파크라인 컨테이너 요소 선택
-      const sparklineContainers = document.querySelectorAll('.sparkline-container');
-      
-      // 각 컨테이너에 스파크라인 적용
-      sparklineContainers.forEach(container => {
-        const type = container.getAttribute('data-sparkline-type');
-        const values = container.getAttribute('data-sparkline');
-        const width = container.getAttribute('data-sparkline-width') || '100';
-        const height = container.getAttribute('data-sparkline-height') || '30';
+      // 라인 스파크라인 그리기
+      document.querySelectorAll('[data-sparkline-type="line"]').forEach(container => {
+        const values = container.getAttribute('data-sparkline').split(',').map(Number);
+        const width = parseInt(container.getAttribute('data-sparkline-width') || '50');
+        const height = parseInt(container.getAttribute('data-sparkline-height') || '20');
+        const lineColor = container.getAttribute('data-sparkline-line-color') || '#1e88e5';
         
-        // 스파크라인 옵션 설정
-        const options = {
-          type: type,
-          width: width,
-          height: height,
-          lineColor: container.getAttribute('data-sparkline-line-color') || '#1e88e5',
-          fillColor: container.getAttribute('data-sparkline-fill-color') || 'rgba(30, 136, 229, 0.1)',
-          spotColor: container.getAttribute('data-sparkline-spot-color') || '#1e88e5',
-          minSpotColor: container.getAttribute('data-sparkline-min-spot-color') || '#dc3545',
-          maxSpotColor: container.getAttribute('data-sparkline-max-spot-color') || '#198754',
-          barColor: container.getAttribute('data-sparkline-bar-color') || '#1e88e5',
-          barWidth: container.getAttribute('data-sparkline-bar-width') || 5,
-          disableTooltips: true
-        };
+        // 캔버스 생성
+        const canvas = document.createElement('canvas');
+        canvas.className = 'sparkline-canvas';
+        canvas.width = width;
+        canvas.height = height;
+        container.appendChild(canvas);
         
-        // 스파크라인 생성
-        $(container).sparkline(values.split(','), options);
+        // 캔버스에 라인 그리기
+        drawLineSparkline(canvas, values, lineColor);
       });
+      
+      // 바 스파크라인 그리기
+      document.querySelectorAll('[data-sparkline-type="bar"]').forEach(container => {
+        const value = parseInt(container.getAttribute('data-sparkline'));
+        const barColor = container.getAttribute('data-sparkline-bar-color') || '#0d6efd';
+        
+        // 바 컨테이너 생성
+        const barContainer = document.createElement('div');
+        barContainer.className = 'bar-sparkline';
+        container.appendChild(barContainer);
+        
+        // 바 채우기 요소 생성
+        const barFill = document.createElement('div');
+        barFill.className = 'bar-sparkline-fill';
+        barFill.style.width = value + '%';
+        barFill.style.backgroundColor = barColor;
+        barContainer.appendChild(barFill);
+      });
+    }
+    
+    // 라인 스파크라인 그리기 함수
+    function drawLineSparkline(canvas, values, lineColor) {
+      if (!values || values.length === 0) return;
+      
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+      
+      // 캔버스 초기화
+      ctx.clearRect(0, 0, width, height);
+      
+      // 데이터 정규화를 위한 최대/최소값 찾기
+      const max = Math.max(...values);
+      const min = Math.min(...values);
+      const range = max - min || 1; // 0으로 나누기 방지
+      
+      // 라인 스타일 설정
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      
+      // 라인 그리기 시작
+      ctx.beginPath();
+      
+      // 각 데이터 포인트를 캔버스에 그리기
+      values.forEach((value, index) => {
+        // x 좌표 계산 (데이터 포인트 간 균등 간격)
+        const x = (index / (values.length - 1 || 1)) * width;
+        
+        // y 좌표 계산 (값 정규화)
+        const normalizedValue = (value - min) / range;
+        const y = height - (normalizedValue * (height - 4)) - 2; // 상하 2px 여백
+        
+        // 첫 포인트는 moveTo, 나머지는 lineTo
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      
+      // 라인 그리기
+      ctx.stroke();
+      
+      // 시작점과 끝점에 점 표시
+      const firstValue = (values[0] - min) / range;
+      const lastValue = (values[values.length - 1] - min) / range;
+      
+      const firstY = height - (firstValue * (height - 4)) - 2;
+      const lastY = height - (lastValue * (height - 4)) - 2;
+      
+      // 시작점
+      ctx.beginPath();
+      ctx.arc(0, firstY, 2, 0, Math.PI * 2);
+      ctx.fillStyle = lineColor;
+      ctx.fill();
+      
+      // 끝점
+      ctx.beginPath();
+      ctx.arc(width, lastY, 2, 0, Math.PI * 2);
+      ctx.fillStyle = lineColor;
+      ctx.fill();
     }
     
     // 정렬 이벤트 리스너 설정
