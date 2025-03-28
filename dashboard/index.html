@@ -1,4 +1,3 @@
-
 <!-- V2 -->
 <!DOCTYPE html>
 <html>
@@ -10,6 +9,9 @@
     <script src="https://www.gstatic.com/charts/loader.js"></script>
     <!-- 부트스트랩 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- jquery-sparkline 라이브러리 추가 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.min.js"></script>
     <style>
       body {
         font-family: 'Noto Sans KR', Arial, sans-serif;
@@ -199,7 +201,7 @@
       }
       
       .shift-nt {
-        background-color: #343a40; /* 짙은 회색 배경 */
+        background-color: #6f42c1; /* 보라색 배경 */
         color: white; /* 흰색 글자 */
         padding: 2px 5px;
         border-radius: 3px;
@@ -214,6 +216,53 @@
       
       .shift-4 {
         color: yellow; /* 노란색 글자 */
+      }
+      
+      /* 점수 및 목표 달성 스타일 */
+      .score-high {
+        font-weight: bold;
+        color: #198754; /* 초록색 */
+      }
+      
+      .score-medium {
+        font-weight: bold;
+        color: #fd7e14; /* 주황색 */
+      }
+      
+      .score-low {
+        font-weight: bold;
+        color: #dc3545; /* 빨간색 */
+      }
+      
+      .goal-achieved {
+        font-weight: bold;
+        color: #198754; /* 초록색 */
+        background-color: rgba(25, 135, 84, 0.1); /* 연한 초록색 배경 */
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+      
+      .goal-partial {
+        font-weight: bold;
+        color: #fd7e14; /* 주황색 */
+        background-color: rgba(253, 126, 20, 0.1); /* 연한 주황색 배경 */
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+      
+      .goal-failed {
+        font-weight: bold;
+        color: #dc3545; /* 빨간색 */
+        background-color: rgba(220, 53, 69, 0.1); /* 연한 빨간색 배경 */
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+      
+      /* 스파크라인 컨테이너 스타일 */
+      .sparkline-container {
+        display: inline-block;
+        margin-left: 10px;
+        vertical-align: middle;
       }
     </style>
   </head>
@@ -806,6 +855,20 @@
       // 데이터 필터링 및 정렬
       const filteredData = filterAndSortData();
       
+      // 점수 범위 계산을 위한 최대/최소값 찾기
+      let maxScore = 0;
+      let minScore = Infinity;
+      
+      filteredData.forEach(({data: s}) => {
+        if (s.totalScore > maxScore) maxScore = s.totalScore;
+        if (s.totalScore < minScore) minScore = s.totalScore;
+      });
+      
+      // 점수 범위 계산
+      const scoreRange = maxScore - minScore;
+      const highScoreThreshold = maxScore - (scoreRange * 0.3); // 상위 30%
+      const lowScoreThreshold = minScore + (scoreRange * 0.3); // 하위 30%
+      
       // 행 추가
       filteredData.forEach(({dispatcher, data: s}) => {
         const row = tableBody.insertRow();
@@ -852,14 +915,157 @@
           shiftCell.appendChild(shiftSpan);
         }
         
+        // 근무 시간 셀
         row.insertCell(2).textContent = s.workHours;
-        row.insertCell(3).textContent = s.total;
-        row.insertCell(4).textContent = s.totalScore;
-        row.insertCell(5).textContent = `${s.operatorDispatch} (${Math.round(s.operatorDispatch/s.total*100)}%)`;
-        row.insertCell(6).textContent = `${s.systemDispatch} (${Math.round(s.systemDispatch/s.total*100)}%)`;
+        
+        // 총 건수 셀
+        const totalCell = row.insertCell(3);
+        totalCell.textContent = s.total;
+        
+        // 총 건수에 스파크라인 추가 (최근 5개 데이터 샘플 - 임의 데이터)
+        if (s.timeSamples && s.timeSamples.length > 0) {
+          // 소요시간 데이터 샘플에서 최대 5개 추출하여 스파크라인 생성
+          const sparklineData = s.timeSamples.slice(0, Math.min(5, s.timeSamples.length));
+          const sparklineContainer = document.createElement('span');
+          sparklineContainer.className = 'sparkline-container';
+          totalCell.appendChild(sparklineContainer);
+          
+          // 스파크라인 초기화를 위한 데이터 속성 추가
+          sparklineContainer.setAttribute('data-sparkline', sparklineData.join(','));
+          sparklineContainer.setAttribute('data-sparkline-type', 'line');
+          sparklineContainer.setAttribute('data-sparkline-width', '50');
+          sparklineContainer.setAttribute('data-sparkline-height', '20');
+        }
+        
+        // 총 점수 셀
+        const scoreCell = row.insertCell(4);
+        const scoreSpan = document.createElement('span');
+        
+        // 점수에 따른 스타일 적용
+        if (s.totalScore >= highScoreThreshold) {
+          scoreSpan.className = 'score-high';
+        } else if (s.totalScore <= lowScoreThreshold) {
+          scoreSpan.className = 'score-low';
+        } else {
+          scoreSpan.className = 'score-medium';
+        }
+        
+        scoreSpan.textContent = s.totalScore;
+        scoreCell.appendChild(scoreSpan);
+        
+        // 오퍼레이터 배차 셀
+        const opCell = row.insertCell(5);
+        const opPercent = Math.round(s.operatorDispatch/s.total*100);
+        opCell.textContent = `${s.operatorDispatch} (${opPercent}%)`;
+        
+        // 오퍼레이터 배차 비율에 스파크라인 추가 (막대 그래프)
+        const opSparklineContainer = document.createElement('span');
+        opSparklineContainer.className = 'sparkline-container';
+        opCell.appendChild(opSparklineContainer);
+        
+        // 스파크라인 초기화를 위한 데이터 속성 추가
+        opSparklineContainer.setAttribute('data-sparkline', opPercent);
+        opSparklineContainer.setAttribute('data-sparkline-type', 'bar');
+        opSparklineContainer.setAttribute('data-sparkline-width', '40');
+        opSparklineContainer.setAttribute('data-sparkline-height', '20');
+        opSparklineContainer.setAttribute('data-sparkline-bar-color', '#0d6efd');
+        
+        // 시스템 배차 셀
+        const sysCell = row.insertCell(6);
+        const sysPercent = Math.round(s.systemDispatch/s.total*100);
+        sysCell.textContent = `${s.systemDispatch} (${sysPercent}%)`;
+        
+        // 시스템 배차 비율에 스파크라인 추가 (막대 그래프)
+        const sysSparklineContainer = document.createElement('span');
+        sysSparklineContainer.className = 'sparkline-container';
+        sysCell.appendChild(sysSparklineContainer);
+        
+        // 스파크라인 초기화를 위한 데이터 속성 추가
+        sysSparklineContainer.setAttribute('data-sparkline', sysPercent);
+        sysSparklineContainer.setAttribute('data-sparkline-type', 'bar');
+        sysSparklineContainer.setAttribute('data-sparkline-width', '40');
+        sysSparklineContainer.setAttribute('data-sparkline-height', '20');
+        sysSparklineContainer.setAttribute('data-sparkline-bar-color', '#6c757d');
+        
+        // 처리 불가 셀
         row.insertCell(7).textContent = s.cantProcess;
-        row.insertCell(8).textContent = `${Math.round(s.avgTime)} 초`;
-        row.insertCell(9).textContent = s.goalAchievement;
+        
+        // 평균 소요 시간 셀
+        const avgTimeCell = row.insertCell(8);
+        avgTimeCell.textContent = `${Math.round(s.avgTime)} 초`;
+        
+        // 평균 소요 시간에 스파크라인 추가 (라인 그래프)
+        if (s.timeSamples && s.timeSamples.length > 0) {
+          const timeSparklineContainer = document.createElement('span');
+          timeSparklineContainer.className = 'sparkline-container';
+          avgTimeCell.appendChild(timeSparklineContainer);
+          
+          // 스파크라인 초기화를 위한 데이터 속성 추가
+          const timeData = s.timeSamples.slice(0, Math.min(10, s.timeSamples.length));
+          timeSparklineContainer.setAttribute('data-sparkline', timeData.join(','));
+          timeSparklineContainer.setAttribute('data-sparkline-type', 'line');
+          timeSparklineContainer.setAttribute('data-sparkline-width', '50');
+          timeSparklineContainer.setAttribute('data-sparkline-height', '20');
+          timeSparklineContainer.setAttribute('data-sparkline-line-color', '#fd7e14');
+        }
+        
+        // 목표 달성 셀
+        const goalCell = row.insertCell(9);
+        const goalSpan = document.createElement('span');
+        
+        // 목표 달성 여부에 따른 스타일 적용
+        if (s.goalAchievement) {
+          const goalText = s.goalAchievement.toString().toLowerCase();
+          
+          if (goalText.includes('달성') || goalText.includes('100%') || goalText.includes('완료')) {
+            goalSpan.className = 'goal-achieved';
+          } else if (goalText.includes('부분') || goalText.includes('진행') || 
+                    (goalText.includes('%') && parseInt(goalText) >= 50)) {
+            goalSpan.className = 'goal-partial';
+          } else {
+            goalSpan.className = 'goal-failed';
+          }
+          
+          goalSpan.textContent = s.goalAchievement;
+          goalCell.appendChild(goalSpan);
+        } else {
+          goalCell.textContent = s.goalAchievement;
+        }
+      });
+      
+      // 스파크라인 초기화
+      initSparklines();
+    }
+    
+    // 스파크라인 초기화 함수
+    function initSparklines() {
+      // 모든 스파크라인 컨테이너 요소 선택
+      const sparklineContainers = document.querySelectorAll('.sparkline-container');
+      
+      // 각 컨테이너에 스파크라인 적용
+      sparklineContainers.forEach(container => {
+        const type = container.getAttribute('data-sparkline-type');
+        const values = container.getAttribute('data-sparkline');
+        const width = container.getAttribute('data-sparkline-width') || '100';
+        const height = container.getAttribute('data-sparkline-height') || '30';
+        
+        // 스파크라인 옵션 설정
+        const options = {
+          type: type,
+          width: width,
+          height: height,
+          lineColor: container.getAttribute('data-sparkline-line-color') || '#1e88e5',
+          fillColor: container.getAttribute('data-sparkline-fill-color') || 'rgba(30, 136, 229, 0.1)',
+          spotColor: container.getAttribute('data-sparkline-spot-color') || '#1e88e5',
+          minSpotColor: container.getAttribute('data-sparkline-min-spot-color') || '#dc3545',
+          maxSpotColor: container.getAttribute('data-sparkline-max-spot-color') || '#198754',
+          barColor: container.getAttribute('data-sparkline-bar-color') || '#1e88e5',
+          barWidth: container.getAttribute('data-sparkline-bar-width') || 5,
+          disableTooltips: true
+        };
+        
+        // 스파크라인 생성
+        $(container).sparkline(values.split(','), options);
       });
     }
     
