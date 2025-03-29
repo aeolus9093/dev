@@ -254,8 +254,8 @@ function getWorkPerformanceCachedData() {
     return getWorkPerformanceData();
   }
   
-  // 캐시된 데이터가 없거나 10분(6000000밀리초)이 지났으면 새로 가져오기
-  if (!lastUpdateStr || isDataStale(lastUpdateStr, 6000000)) {
+  // 캐시된 데이터가 없거나 4시간 (14400000밀리초)이 지났으면 새로 가져오기
+  if (!lastUpdateStr || isDataStale(lastUpdateStr, 14400000)) {
     console.log('근무자 실적 데이터 새로 가져오기');
     return getWorkPerformanceData();
   }

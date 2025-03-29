@@ -4,11 +4,15 @@
   <head>
     <base target="_top">
     <meta charset="UTF-8">
-    <!-- CSP 정책 수정 - frame-ancestors를 HTTP 헤더로 이동시키고 필요한 스타일 소스 추가 -->
+    <!-- CSP 정책 수정 - Chart.js 추가 -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.googleusercontent.com; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com 'unsafe-inline'; script-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://html2canvas.hertzen.com 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: blob:;">
     <title>배차 대시보드</title>
     <!-- Google Charts 라이브러리 로드 -->
     <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <!-- Chart.js 라이브러리 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js 도넛 및 파이 차트 플러그인 -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
     <!-- 부트스트랩 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- 폰트어썸 CSS -->
@@ -58,6 +62,12 @@
         width: 100% !important;
         height: 100% !important;
         overflow: visible !important; /* 툴팁이 잘리지 않도록 visible 설정 */
+      }
+      
+      /* Chart.js 스타일 추가 */
+      .chart-container canvas {
+        width: 100% !important;
+        height: 100% !important;
       }
       
       /* 차트 툴팁 스타일 */
@@ -566,8 +576,12 @@
     google.charts.load('current', {'packages':['corechart', 'bar', 'table']});
     google.charts.setOnLoadCallback(initCharts);
     
+    // Chart.js 플러그인 등록
+    Chart.register(ChartDataLabels);
+    
     // 차트 초기화
     function initCharts() {
+      console.log('차트 초기화 완료');
       // 데이터 로드 시작
       loadData();
     }
@@ -767,55 +781,116 @@
       const chartContainer = document.getElementById('dispatcher-chart');
       
       try {
-        // DataTable 생성
-        const dataTable = new google.visualization.DataTable();
-        dataTable.addColumn('string', '담당자');
-        dataTable.addColumn('number', '점수');
-        dataTable.addColumn({type: 'string', role: 'tooltip', p: {html: true}});
+        // 기존 캔버스 제거 후 새로 생성
+        while (chartContainer.firstChild) {
+          chartContainer.removeChild(chartContainer.firstChild);
+        }
+        const canvas = document.createElement('canvas');
+        chartContainer.appendChild(canvas);
         
-        // 행 추가
-        Object.keys(stats).forEach(dispatcher => {
-          const score = stats[dispatcher].totalScore;
-          const total = stats[dispatcher].total;
-          const tooltip = `<div style="padding:10px;"><strong>${dispatcher}</strong><br>총 점수: ${score}<br>총 건수: ${total}</div>`;
-          dataTable.addRow([dispatcher, score, tooltip]);
+        // 차트 데이터 준비
+        const dispatchers = Object.keys(stats);
+        const scores = dispatchers.map(dispatcher => stats[dispatcher].totalScore);
+        const totals = dispatchers.map(dispatcher => stats[dispatcher].total);
+        
+        // Chart.js 바 차트 생성
+        const chart = new Chart(canvas, {
+          type: 'bar',
+          data: {
+            labels: dispatchers,
+            datasets: [{
+              label: '점수',
+              data: scores,
+              backgroundColor: 'rgba(66, 133, 244, 0.7)',
+              borderColor: 'rgba(66, 133, 244, 1)',
+              borderWidth: 1,
+              borderRadius: 4,
+              barPercentage: 0.7,
+              categoryPercentage: 0.8,
+              hoverBackgroundColor: 'rgba(66, 133, 244, 0.9)'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'x',
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(0, 0, 0, 0.05)'
+                },
+                title: {
+                  display: true,
+                  text: '점수',
+                  font: {
+                    size: 12
+                  }
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                },
+                ticks: {
+                  maxRotation: 45,
+                  minRotation: 45
+                },
+                title: {
+                  display: true,
+                  text: '담당자',
+                  font: {
+                    size: 12
+                  }
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                callbacks: {
+                  title: function(context) {
+                    return context[0].label;
+                  },
+                  label: function(context) {
+                    const dispatcher = context.label;
+                    const score = context.raw;
+                    const total = totals[context.dataIndex];
+                    return [`점수: ${score}`, `총 건수: ${total}`];
+                  }
+                }
+              },
+              datalabels: {
+                display: function(context) {
+                  return context.dataset.data[context.dataIndex] > 0;
+                },
+                formatter: (value) => {
+                  return value.toFixed(1);
+                },
+                color: '#333',
+                anchor: 'end',
+                align: 'top',
+                offset: 0,
+                font: {
+                  weight: 'bold',
+                  size: 10
+                }
+              }
+            },
+            animation: {
+              duration: 1000
+            }
+          }
         });
-        
-        // 차트 옵션
-        const options = {
-          title: '담당자별 배차 점수',
-          chartArea: {
-            left: 50,
-            top: 30,
-            width: '80%',
-            height: '75%'
-          },
-          legend: {position: 'none'},
-          colors: ['#4285F4'],
-          hAxis: {
-            title: '담당자',
-            slantedText: true,
-            slantedTextAngle: 45
-          },
-          vAxis: {
-            title: '점수',
-            minValue: 0
-          },
-          width: '100%',
-          height: '100%',
-          tooltip: { isHtml: true }
-        };
-        
-        // 차트 그리기
-        const chart = new google.visualization.ColumnChart(chartContainer);
-        chart.draw(dataTable, options);
         
         // 전역 함수 정의
         window.drawDispatcherChart = function() {
           try {
-            chart.draw(dataTable, options);
+            chart.update();
           } catch(e) {
-            console.error("Error drawing dispatcher chart:", e);
+            console.error("Error updating dispatcher chart:", e);
           }
         };
       
@@ -832,9 +907,6 @@
       
       // 필터 이벤트 리스너 설정
       setupFilterListeners();
-      
-      // 스파크라인 초기화
-      initSparklines();
     }
     
     // 데이터 필터링 및 정렬
@@ -1554,57 +1626,107 @@
       const chartContainer = document.getElementById('hourly-chart');
       
       try {
-        // DataTable 생성
-        const dataTable = new google.visualization.DataTable();
-        dataTable.addColumn('string', '시간대');
-        dataTable.addColumn('number', '건수');
+        // 기존 캔버스 제거 후 새로 생성
+        while (chartContainer.firstChild) {
+          chartContainer.removeChild(chartContainer.firstChild);
+        }
+        const canvas = document.createElement('canvas');
+        chartContainer.appendChild(canvas);
         
-        // 행 추가
-        hourlyStats.forEach(stat => {
-          dataTable.addRow([`${stat.hour}시`, stat.count]);
+        // 차트 데이터 준비
+        const labels = hourlyStats.map(stat => `${stat.hour}시`);
+        const data = hourlyStats.map(stat => stat.count);
+        
+        // Chart.js 바 차트 생성
+        const chart = new Chart(canvas, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: '배차 건수',
+              data: data,
+              backgroundColor: 'rgba(52, 168, 83, 0.7)',
+              borderColor: 'rgba(52, 168, 83, 1)',
+              borderWidth: 1,
+              borderRadius: 5,
+              barPercentage: 0.7,
+              categoryPercentage: 0.8,
+              hoverBackgroundColor: 'rgba(52, 168, 83, 0.9)'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(0, 0, 0, 0.05)'
+                },
+                ticks: {
+                  precision: 0
+                },
+                title: {
+                  display: true,
+                  text: '건수',
+                  font: {
+                    size: 12
+                  }
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                },
+                title: {
+                  display: true,
+                  text: '시간대',
+                  font: {
+                    size: 12
+                  }
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return `${context.raw}건`;
+                  }
+                }
+              },
+              datalabels: {
+                display: function(context) {
+                  return context.dataset.data[context.dataIndex] > 0;
+                },
+                formatter: (value) => {
+                  return value;
+                },
+                color: '#333',
+                anchor: 'end',
+                align: 'top',
+                offset: 0,
+                font: {
+                  weight: 'bold',
+                  size: 11
+                }
+              }
+            },
+            animation: {
+              duration: 1000
+            }
+          }
         });
-        
-        // 차트 옵션
-        const options = {
-          title: '시간대별 배차 건수',
-          chartArea: {
-            left: 50,
-            top: 30,
-            width: '80%',
-            height: '75%'
-          },
-          legend: {position: 'none'},
-          colors: ['#34A853'],
-          hAxis: {
-            title: '시간대',
-            slantedText: false,
-            showTextEvery: 1
-          },
-          vAxis: {
-            title: '건수',
-            minValue: 0
-          },
-          animation: {
-            startup: true,
-            duration: 1000,
-            easing: 'out'
-          },
-          bar: {groupWidth: '70%'},
-          width: '100%',
-          height: '100%',
-          tooltip: { isHtml: true }
-        };
-        
-        // 차트 그리기
-        const chart = new google.visualization.ColumnChart(chartContainer);
-        chart.draw(dataTable, options);
         
         // 전역 함수 정의
         window.drawHourlyChart = function() {
           try {
-            chart.draw(dataTable, options);
+            chart.update();
           } catch(e) {
-            console.error("Error drawing hourly chart:", e);
+            console.error("Error updating hourly chart:", e);
           }
         };
       
@@ -1761,54 +1883,91 @@
       const chartContainer = document.getElementById('dispatch-result-chart');
       
       try {
-        // DataTable 생성
-        const dataTable = new google.visualization.DataTable();
-        dataTable.addColumn('string', '배차 결과');
-        dataTable.addColumn('number', '건수');
+        // 기존 캔버스 제거 후 새로 생성
+        while (chartContainer.firstChild) {
+          chartContainer.removeChild(chartContainer.firstChild);
+        }
+        const canvas = document.createElement('canvas');
+        chartContainer.appendChild(canvas);
         
-        // 행 추가
-        resultStats.forEach(stat => {
-          dataTable.addRow([stat.result, stat.count]);
-        });
+        // 차트 데이터 준비
+        const labels = resultStats.map(stat => stat.result);
+        const data = resultStats.map(stat => stat.count);
         
-        // 차트 옵션
-        const options = {
-          title: '배차 결과 분포',
-          chartArea: {
-            left: 30,
-            top: 30,
-            width: '60%',
-            height: '75%'
+        // 색상 배열
+        const colors = [
+          'rgba(66, 133, 244, 0.8)',   // 파랑 (#4285F4)
+          'rgba(234, 67, 53, 0.8)',    // 빨강 (#EA4335)
+          'rgba(251, 188, 5, 0.8)',    // 노랑 (#FBBC05)
+          'rgba(52, 168, 83, 0.8)',    // 초록 (#34A853)
+          'rgba(142, 36, 170, 0.8)'    // 보라 (#8E24AA)
+        ];
+        
+        // Chart.js 도넛 차트 생성
+        const chart = new Chart(canvas, {
+          type: 'doughnut',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: data,
+              backgroundColor: colors,
+              borderColor: colors.map(color => color.replace('0.8', '1')),
+              borderWidth: 1,
+              hoverOffset: 10
+            }]
           },
-          pieHole: 0.4,
-          colors: ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#8E24AA'],
-          legend: {
-            position: 'right',
-            alignment: 'center',
-            textStyle: {
-              fontSize: 12
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: {
+                  font: {
+                    size: 12
+                  },
+                  padding: 15
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.raw || 0;
+                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    const percentage = Math.round((value / total) * 100);
+                    return `${label}: ${value}건 (${percentage}%)`;
+                  }
+                }
+              },
+              datalabels: {
+                formatter: (value, ctx) => {
+                  const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                  const percentage = Math.round((value / total) * 100);
+                  return value > 0 ? value : '';
+                },
+                color: '#fff',
+                font: {
+                  weight: 'bold',
+                  size: 12
+                }
+              }
+            },
+            animation: {
+              animateScale: true,
+              animateRotate: true,
+              duration: 1000
             }
-          },
-          tooltip: {
-            showColorCode: true,
-            text: 'both',
-            isHtml: true
-          },
-          pieSliceText: 'value',
-          width: '100%',
-          height: '100%'
-        };
-        
-        // 차트 그리기
-        const chart = new google.visualization.PieChart(chartContainer);
-        chart.draw(dataTable, options);
+          }
+        });
         
         // 전역 함수 정의
         window.drawResultChart = function() {
           try {
-            chart.draw(dataTable, options);
+            chart.update();
           } catch(e) {
-            console.error("Error drawing result chart:", e);
+            console.error("Error updating result chart:", e);
           }
         };
       
@@ -1825,47 +1984,94 @@
       const chartContainer = document.getElementById('region-chart');
       
       try {
-        // 차트 데이터 변환
-        const dataTable = google.visualization.arrayToDataTable(regionData);
+        // 기존 캔버스 제거 후 새로 생성
+        while (chartContainer.firstChild) {
+          chartContainer.removeChild(chartContainer.firstChild);
+        }
+        const canvas = document.createElement('canvas');
+        chartContainer.appendChild(canvas);
         
-        // 차트 옵션
-        const options = {
-          title: '지역별 배차 건수',
-          chartArea: {
-            left: 30,
-            top: 30,
-            width: '60%',
-            height: '75%'
+        // 차트 데이터 준비 (첫 번째 행은 헤더이므로 제외)
+        const labels = regionData.slice(1).map(item => item[0]);
+        const data = regionData.slice(1).map(item => item[1]);
+        
+        // 색상 배열 (더 많은 색상 추가)
+        const colors = [
+          'rgba(66, 133, 244, 0.8)',   // 파랑 (#4285F4)
+          'rgba(234, 67, 53, 0.8)',    // 빨강 (#EA4335)
+          'rgba(251, 188, 5, 0.8)',    // 노랑 (#FBBC05)
+          'rgba(52, 168, 83, 0.8)',    // 초록 (#34A853)
+          'rgba(142, 36, 170, 0.8)',   // 보라 (#8E24AA)
+          'rgba(57, 73, 171, 0.8)',    // 진한 파랑 (#3949AB)
+          'rgba(3, 155, 229, 0.8)',    // 하늘색 (#039BE5)
+          'rgba(67, 160, 71, 0.8)'     // 연한 초록 (#43A047)
+        ];
+        
+        // Chart.js 도넛 차트 생성
+        const chart = new Chart(canvas, {
+          type: 'doughnut',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: data,
+              backgroundColor: colors,
+              borderColor: colors.map(color => color.replace('0.8', '1')),
+              borderWidth: 1,
+              hoverOffset: 10
+            }]
           },
-          pieHole: 0.4,
-          colors: ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#8E24AA', '#3949AB', '#039BE5', '#43A047'],
-          legend: {
-            position: 'right',
-            alignment: 'center',
-            textStyle: {
-              fontSize: 12
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: {
+                  font: {
+                    size: 12
+                  },
+                  padding: 15
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.raw || 0;
+                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    const percentage = Math.round((value / total) * 100);
+                    return `${label}: ${value}건 (${percentage}%)`;
+                  }
+                }
+              },
+              datalabels: {
+                formatter: (value, ctx) => {
+                  const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                  const percentage = Math.round((value / total) * 100);
+                  return value > 0 ? value : '';
+                },
+                color: '#fff',
+                font: {
+                  weight: 'bold',
+                  size: 12
+                }
+              }
+            },
+            animation: {
+              animateScale: true,
+              animateRotate: true,
+              duration: 1000
             }
-          },
-          tooltip: {
-            showColorCode: true,
-            isHtml: true,
-            trigger: 'selection'
-          },
-          pieSliceText: 'value',
-          width: '100%',
-          height: '100%'
-        };
-        
-        // 차트 그리기
-        const chart = new google.visualization.PieChart(chartContainer);
-        chart.draw(dataTable, options);
+          }
+        });
         
         // 전역 함수 정의
         window.drawRegionChart = function() {
           try {
-            chart.draw(dataTable, options);
+            chart.update();
           } catch(e) {
-            console.error("Error drawing region chart:", e);
+            console.error("Error updating region chart:", e);
           }
         };
       
@@ -2026,6 +2232,7 @@
         if (typeof window.drawRegionChart === 'function') window.drawRegionChart();
       });
     }
-  </script>
-  </body>
+  
+</script>
+</body>
 </html>
