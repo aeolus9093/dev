@@ -426,12 +426,12 @@
             </div>
           </div>
           
-          <!-- 지역별 배차 건수 차트 -->
+          <!-- 추가 지급금액 차트 (지역별 배차 건수 차트를 대체) -->
           <div class="col-md-6 mb-4">
             <div class="card h-100">
-              <div class="card-header">지역별 배차 건수</div>
+              <div class="card-header">추가 지급금액 분포</div>
               <div class="card-body">
-                <div id="region-chart" class="chart-container"></div>
+                <div id="additional-payment-chart" class="chart-container"></div>
               </div>
             </div>
           </div>
@@ -1603,7 +1603,20 @@
       // 평균 지연 시간 표시
       document.getElementById('avg-delay-time').textContent = Math.round(summary.avgDelayTime);
       
-      // 지역별 차트 데이터 생성
+      // 추가 지급금액 차트 데이터 생성 (예시 데이터)
+      const additionalPaymentData = [
+        { category: '거리 추가', amount: 150000 },
+        { category: '대기 시간', amount: 85000 },
+        { category: '심야 할증', amount: 120000 },
+        { category: '기타 할증', amount: 45000 },
+        { category: '특별 지급', amount: 30000 }
+      ];
+      
+      // 추가 지급금액 차트 표시
+      displayAdditionalPaymentChart(additionalPaymentData);
+      
+      // 지역별 차트 데이터 생성 (주석 처리)
+      /*
       const regionChartData = [['지역', '건수']];
       
       // 데이터 정렬 (건수 기준 내림차순)
@@ -1617,6 +1630,7 @@
       
       // 지역별 차트 그리기 (분리된 함수 호출)
       displayRegionChart(regionChartData);
+      */
     }
     
     // 시간대별 통계 표시
@@ -1977,11 +1991,11 @@
       }
     }
     
-    // 전체 요약 통계 표시에서 지역별 차트 수정
-    function displayRegionChart(regionData) {
-      if (!regionData || regionData.length <= 1) return;
+    // 추가 지급금액 차트 표시 함수
+    function displayAdditionalPaymentChart(data) {
+      if (!data || data.length === 0) return;
       
-      const chartContainer = document.getElementById('region-chart');
+      const chartContainer = document.getElementById('additional-payment-chart');
       
       try {
         // 기존 캔버스 제거 후 새로 생성
@@ -1991,21 +2005,9 @@
         const canvas = document.createElement('canvas');
         chartContainer.appendChild(canvas);
         
-        // 차트 데이터 준비 (첫 번째 행은 헤더이므로 제외)
-        const labels = regionData.slice(1).map(item => item[0]);
-        const data = regionData.slice(1).map(item => item[1]);
-        
-        // 색상 배열 (더 많은 색상 추가)
-        const colors = [
-          'rgba(66, 133, 244, 0.8)',   // 파랑 (#4285F4)
-          'rgba(234, 67, 53, 0.8)',    // 빨강 (#EA4335)
-          'rgba(251, 188, 5, 0.8)',    // 노랑 (#FBBC05)
-          'rgba(52, 168, 83, 0.8)',    // 초록 (#34A853)
-          'rgba(142, 36, 170, 0.8)',   // 보라 (#8E24AA)
-          'rgba(57, 73, 171, 0.8)',    // 진한 파랑 (#3949AB)
-          'rgba(3, 155, 229, 0.8)',    // 하늘색 (#039BE5)
-          'rgba(67, 160, 71, 0.8)'     // 연한 초록 (#43A047)
-        ];
+        // 차트 데이터 준비
+        const labels = data.map(item => item.category);
+        const values = data.map(item => item.amount);
         
         // Chart.js 도넛 차트 생성
         const chart = new Chart(canvas, {
@@ -2013,9 +2015,21 @@
           data: {
             labels: labels,
             datasets: [{
-              data: data,
-              backgroundColor: colors,
-              borderColor: colors.map(color => color.replace('0.8', '1')),
+              data: values,
+              backgroundColor: [
+                'rgba(66, 133, 244, 0.8)',   // 파랑 (#4285F4)
+                'rgba(234, 67, 53, 0.8)',    // 빨강 (#EA4335)
+                'rgba(251, 188, 5, 0.8)',    // 노랑 (#FBBC05)
+                'rgba(52, 168, 83, 0.8)',    // 초록 (#34A853)
+                'rgba(142, 36, 170, 0.8)'    // 보라 (#8E24AA)
+              ],
+              borderColor: [
+                'rgba(66, 133, 244, 1)',
+                'rgba(234, 67, 53, 1)',
+                'rgba(251, 188, 5, 1)',
+                'rgba(52, 168, 83, 1)',
+                'rgba(142, 36, 170, 1)'
+              ],
               borderWidth: 1,
               hoverOffset: 10
             }]
@@ -2041,7 +2055,7 @@
                     const value = context.raw || 0;
                     const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
                     const percentage = Math.round((value / total) * 100);
-                    return `${label}: ${value}건 (${percentage}%)`;
+                    return `${label}: ${value.toLocaleString('ko-KR')}원 (${percentage}%)`;
                   }
                 }
               },
@@ -2049,7 +2063,7 @@
                 formatter: (value, ctx) => {
                   const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
                   const percentage = Math.round((value / total) * 100);
-                  return value > 0 ? value : '';
+                  return percentage > 5 ? `${percentage}%` : '';
                 },
                 color: '#fff',
                 font: {
@@ -2067,16 +2081,16 @@
         });
         
         // 전역 함수 정의
-        window.drawRegionChart = function() {
+        window.drawAdditionalPaymentChart = function() {
           try {
             chart.update();
           } catch(e) {
-            console.error("Error updating region chart:", e);
+            console.error("Error updating additional payment chart:", e);
           }
         };
       
       } catch (e) {
-        console.error("Error creating region chart:", e);
+        console.error("Error creating additional payment chart:", e);
         chartContainer.innerHTML = '<div class="alert alert-warning">차트 로드 중 오류가 발생했습니다.</div>';
       }
     }
@@ -2109,6 +2123,7 @@
       if (typeof window.drawRegionChart === 'function') window.drawRegionChart();
       if (typeof window.drawHourlyChart === 'function') window.drawHourlyChart();
       if (typeof window.drawDispatcherChart === 'function') window.drawDispatcherChart();
+      if (typeof window.drawAdditionalPaymentChart === 'function') window.drawAdditionalPaymentChart();
     }
     
     // 모든 차트 컨테이너에 공통 스타일 적용
@@ -2230,6 +2245,7 @@
         if (typeof window.drawHourlyChart === 'function') window.drawHourlyChart();
         if (typeof window.drawDispatchResultChart === 'function') window.drawDispatchResultChart();
         if (typeof window.drawRegionChart === 'function') window.drawRegionChart();
+        if (typeof window.drawAdditionalPaymentChart === 'function') window.drawAdditionalPaymentChart();
       });
     }
   
