@@ -240,8 +240,22 @@ function getWorkPerformanceCachedData() {
   const props = PropertiesService.getScriptProperties();
   const lastUpdateStr = props.getProperty('lastWorkPerformanceUpdate');
   
-  // 캐시된 데이터가 없거나 4시간(14400000밀리초)이 지났으면 새로 가져오기
-  if (!lastUpdateStr || isDataStale(lastUpdateStr, 14400000)) {
+  // 현재 시간을 확인하여 특정 시간대인지 체크
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  
+  // 특정 시간대(6:00, 10:00, 11:00, 15:00, 17:00, 19:00)에는 무조건 새로 가져오기
+  const refreshHours = [6, 10, 11, 15, 17, 19];
+  const isScheduledRefreshTime = refreshHours.includes(currentHour) && currentMinute < 5; // 각 시간의 처음 5분 이내
+  
+  if (isScheduledRefreshTime) {
+    console.log(`${currentHour}:${currentMinute} 정각 데이터 새로고침 시간`);
+    return getWorkPerformanceData();
+  }
+  
+  // 캐시된 데이터가 없거나 10분(6000000밀리초)이 지났으면 새로 가져오기
+  if (!lastUpdateStr || isDataStale(lastUpdateStr, 6000000)) {
     console.log('근무자 실적 데이터 새로 가져오기');
     return getWorkPerformanceData();
   }
