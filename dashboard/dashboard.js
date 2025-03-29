@@ -358,6 +358,7 @@ function getDispatchSummary() {
   const delayTimeIdx = 4;  // '지연시간' 열
   const regionIdx = 13;    // 'region_id' 열
   const adTypeIdx = 15;    // 'AD 타입' 열
+  const additionalPaymentIdx = 8; // 'I' 컬럼 - 추가지급금액 열 (0부터 시작하므로 9번째 열은 8)
   
   // 요약 통계 객체
   const summary = {
@@ -366,7 +367,8 @@ function getDispatchSummary() {
     regions: {},
     adTypes: {},
     avgDelayTime: 0,
-    totalDelayTime: 0
+    totalDelayTime: 0,
+    additionalPayments: {} // 추가지급금액 분포 (금액 => 건수)
   };
   
   // 데이터 집계
@@ -375,6 +377,7 @@ function getDispatchSummary() {
     const delayTime = row[delayTimeIdx];
     const region = row[regionIdx];
     const adType = row[adTypeIdx];
+    const additionalPayment = row[additionalPaymentIdx];
     
     // 배차 결과 집계
     if (!summary.dispatchResults[result]) {
@@ -397,6 +400,28 @@ function getDispatchSummary() {
     // 지연 시간 집계
     if (!isNaN(delayTime) && delayTime > 0) {
       summary.totalDelayTime += delayTime;
+    }
+    
+    // 추가지급금액 집계 - 금액별 건수 카운트
+    if (additionalPayment !== undefined && additionalPayment !== null) {
+      // 숫자로 변환 (문자열일 수 있음)
+      let amount = 0;
+      if (typeof additionalPayment === 'string') {
+        // 쉼표 제거 후 숫자 변환
+        amount = parseFloat(additionalPayment.replace(/,/g, ''));
+      } else if (typeof additionalPayment === 'number') {
+        amount = additionalPayment;
+      }
+      
+      if (!isNaN(amount)) {
+        // 금액을 문자열로 변환하여 키로 사용
+        const amountKey = amount.toString();
+        
+        if (!summary.additionalPayments[amountKey]) {
+          summary.additionalPayments[amountKey] = 0;
+        }
+        summary.additionalPayments[amountKey]++;
+      }
     }
   });
   

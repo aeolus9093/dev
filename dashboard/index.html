@@ -429,7 +429,7 @@
           <!-- 추가 지급금액 차트 (지역별 배차 건수 차트를 대체) -->
           <div class="col-md-6 mb-4">
             <div class="card h-100">
-              <div class="card-header">추가 지급금액 분포</div>
+              <div class="card-header">스킴 분포</div>
               <div class="card-body">
                 <div id="additional-payment-chart" class="chart-container"></div>
               </div>
@@ -1603,14 +1603,22 @@
       // 평균 지연 시간 표시
       document.getElementById('avg-delay-time').textContent = Math.round(summary.avgDelayTime);
       
-      // 추가 지급금액 차트 데이터 생성 (예시 데이터)
-      const additionalPaymentData = [
-        { category: '거리 추가', amount: 150000 },
-        { category: '대기 시간', amount: 85000 },
-        { category: '심야 할증', amount: 120000 },
-        { category: '기타 할증', amount: 45000 },
-        { category: '특별 지급', amount: 30000 }
-      ];
+      // 추가 지급금액 차트 데이터 생성 (실제 I컬럼 데이터 사용)
+      const additionalPaymentData = [];
+      
+      // 금액별 건수 데이터 정렬 및 변환
+      const sortedAmounts = Object.keys(summary.additionalPayments)
+        .map(amount => parseInt(amount))
+        .sort((a, b) => a - b); // 금액 오름차순 정렬
+      
+      // 각 금액별 건수를 차트 데이터로 변환
+      sortedAmounts.forEach(amount => {
+        const count = summary.additionalPayments[amount.toString()];
+        additionalPaymentData.push({
+          category: amount.toLocaleString('ko-KR') + '원',
+          amount: count
+        });
+      });
       
       // 추가 지급금액 차트 표시
       displayAdditionalPaymentChart(additionalPaymentData);
@@ -1999,9 +2007,7 @@
       
       try {
         // 기존 캔버스 제거 후 새로 생성
-        while (chartContainer.firstChild) {
-          chartContainer.removeChild(chartContainer.firstChild);
-        }
+        chartContainer.innerHTML = '';
         const canvas = document.createElement('canvas');
         chartContainer.appendChild(canvas);
         
@@ -2021,14 +2027,24 @@
                 'rgba(234, 67, 53, 0.8)',    // 빨강 (#EA4335)
                 'rgba(251, 188, 5, 0.8)',    // 노랑 (#FBBC05)
                 'rgba(52, 168, 83, 0.8)',    // 초록 (#34A853)
-                'rgba(142, 36, 170, 0.8)'    // 보라 (#8E24AA)
+                'rgba(142, 36, 170, 0.8)',   // 보라 (#8E24AA)
+                'rgba(57, 73, 171, 0.8)',    // 진한 파랑 (#3949AB)
+                'rgba(3, 155, 229, 0.8)',    // 하늘색 (#039BE5)
+                'rgba(67, 160, 71, 0.8)',    // 연한 초록 (#43A047)
+                'rgba(255, 152, 0, 0.8)',    // 주황 (#FF9800)
+                'rgba(156, 39, 176, 0.8)'    // 진한 보라 (#9C27B0)
               ],
               borderColor: [
                 'rgba(66, 133, 244, 1)',
                 'rgba(234, 67, 53, 1)',
                 'rgba(251, 188, 5, 1)',
                 'rgba(52, 168, 83, 1)',
-                'rgba(142, 36, 170, 1)'
+                'rgba(142, 36, 170, 1)',
+                'rgba(57, 73, 171, 1)',
+                'rgba(3, 155, 229, 1)',
+                'rgba(67, 160, 71, 1)',
+                'rgba(255, 152, 0, 1)',
+                'rgba(156, 39, 176, 1)'
               ],
               borderWidth: 1,
               hoverOffset: 10
@@ -2039,13 +2055,37 @@
             maintainAspectRatio: false,
             cutout: '60%',
             plugins: {
+              title: {
+                display: true,
+                text: '추가지급금액별 건수 분포',
+                font: {
+                  size: 14,
+                  weight: 'bold'
+                },
+                padding: {
+                  top: 10,
+                  bottom: 20
+                }
+              },
               legend: {
                 position: 'right',
                 labels: {
                   font: {
-                    size: 12
+                    size: 11
                   },
-                  padding: 15
+                  padding: 10,
+                  // 너무 많은 항목이 있을 경우 범례 크기 제한
+                  generateLabels: function(chart) {
+                    const original = Chart.overrides.doughnut.plugins.legend.labels.generateLabels;
+                    const labels = original.call(this, chart);
+                    
+                    // 항목이 10개 이상일 경우 상위 9개만 표시하고 나머지는 '기타'로 묶음
+                    if (labels.length > 10) {
+                      return labels.slice(0, 9);
+                    }
+                    
+                    return labels;
+                  }
                 }
               },
               tooltip: {
@@ -2055,7 +2095,7 @@
                     const value = context.raw || 0;
                     const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
                     const percentage = Math.round((value / total) * 100);
-                    return `${label}: ${value.toLocaleString('ko-KR')}원 (${percentage}%)`;
+                    return `${label}: ${value}건 (${percentage}%)`;
                   }
                 }
               },
@@ -2068,7 +2108,7 @@
                 color: '#fff',
                 font: {
                   weight: 'bold',
-                  size: 12
+                  size: 11
                 }
               }
             },
